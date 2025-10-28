@@ -317,7 +317,7 @@ async function saveRow(btn, sheet) {
   let orderNo = orderCell ? orderCell.innerText.trim() : "";
 
   if (!orderNo) {
-    const iO = headers.findIndex(h => h.trim() === "Order No.");
+    const iO = headers.findIndex(h => h.trim() === "Order No");
     if (iO >= 0) orderNo = tds[iO]?.innerText?.trim() || "";
   }
 
@@ -387,6 +387,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
