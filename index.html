@@ -154,21 +154,20 @@ function combineSheetsObject(obj){
   FIXED_SHEETS.forEach(sheet=>{
     const sheetData=obj[sheet];
     if(!Array.isArray(sheetData)||sheetData.length<2)return;
-    const headers=sheetData[0];
+    const headers = sheetData[0].map(h => String(h).trim().toLowerCase().replace(/\./g,''));
     sheetData.slice(1).forEach(r=>{
-      if(!Array.isArray(r))return;
-      const mapped=INCLUDED_COLUMNS.map(h=>{
-        const idx=headers.indexOf(h);
-        return idx===-1?"":r[idx]||"";
+      const mapped = INCLUDED_COLUMNS.map(col=>{
+        const idx = headers.indexOf(col.trim().toLowerCase().replace(/\./g,''));
+        return idx===-1 ? "" : (r[idx]||"");
       });
-      const tsIdx=headers.indexOf("Timestamp");
-      mapped[0]=tsIdx>=0?r[tsIdx]:"";
-      mapped[1]=sheet;
+      mapped[0] = r[headers.indexOf("timestamp")] || "";
+      mapped[1] = sheet;
       out.push(mapped);
     });
   });
   return out;
 }
+
 
 function populateFilters() {
   const units = new Set();
@@ -402,6 +401,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
