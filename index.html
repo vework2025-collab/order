@@ -136,7 +136,8 @@ async function loadData(){
   try{
     const res = await fetch(SCRIPT_URL);
 const data = await res.json();
-console.log("📦 Data received from backend:", data);
+console.log("📦 Raw data from backend:", data);
+document.body.insertAdjacentHTML("afterbegin", "<pre>"+JSON.stringify(data,null,2)+"</pre>");
     headers=combined[0].map(h=>h||"");
     rows=clean(combined.slice(1));
     rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
@@ -399,6 +400,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
