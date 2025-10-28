@@ -107,7 +107,7 @@ function combineSheetsObject(obj){
     sh.slice(1).forEach(r=>{
       const mapped=INCLUDED_COLUMNS.map(col=>{
         const idx=hdrs.indexOf(normalise(col));
-        return idx===-1?"":(r[idx]??"");
+        return idx===-1 ? "" : (r[idx] ?? "");
       });
       mapped[0]=r[hdrs.indexOf(normalise("timestamp"))]||"";
       mapped[1]=name;
@@ -214,3 +214,4 @@ loadData();
 </script>
 </body>
 </html>
+
