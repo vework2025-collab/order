@@ -282,26 +282,59 @@ function searchTable(){
   currentPage=1;renderTable();
 }
 
-async function saveRow(btn,sheet){
-  const tr=btn.closest("tr"),tds=[...tr.children];
+async function saveRow(btn, sheet) {
+  const tr = btn.closest("tr");
+  const tds = [...tr.children];
   const orderCell = tr.querySelector("td.order-no");
   let orderNo = orderCell ? orderCell.innerText.trim() : "";
+
   if (!orderNo) {
     const iO = headers.findIndex(h => h.trim() === "Order No.");
-    if (iO >= 0) {
-      orderNo = tds[iO]?.innerText?.trim() || "";
-    }
+    if (iO >= 0) orderNo = tds[iO]?.innerText?.trim() || "";
   }
-  console.log("🧾 Extracted Order No:", orderNo);
-  const sel=tr.querySelector("select"),rem=tr.querySelector(".remark-cell");
-  const status=sel?sel.value:"",remark=rem?rem.innerText.trim():"";
-  if(!orderNo)return alert("❌ Missing Order No.");
-  try{
-    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
-    const j=await res.json();
-    if(j.success)alert("✅ Updated successfully");else throw new Error(j.error||"Failed");
-  }catch(e){alert("❌ "+e.message);}
+
+  const sel = tr.querySelector("select");
+  const rem = tr.querySelector(".remark-cell");
+  const status = sel ? sel.value : "";
+  const remark = rem ? rem.innerText.trim() : "";
+
+  if (!orderNo) return alert("❌ Missing Order No.");
+
+  // ✅ Disable button & show saving text
+  btn.disabled = true;
+  const originalText = btn.innerText;
+  btn.innerText = "Saving...";
+  btn.style.background = "#ffc107";
+  btn.style.color = "#000";
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheetName: sheet, orderNo, status, remark })
+    });
+
+    const j = await res.json();
+    if (j.success) {
+      btn.innerText = "Saved ✅";
+      btn.style.background = "#28a745";
+      btn.style.color = "#fff";
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.background = "#28a745";
+        btn.disabled = false;
+      }, 1500);
+    } else {
+      throw new Error(j.error || "Failed to update");
+    }
+  } catch (e) {
+    alert("❌ " + e.message);
+    btn.innerText = originalText;
+    btn.style.background = "#28a745";
+    btn.disabled = false;
+  }
 }
+
 
 loadData();
 async function generateOrderPrint(sheetName, orderNo) {
@@ -326,3 +359,4 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
