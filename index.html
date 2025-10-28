@@ -105,11 +105,10 @@ const FIXED_SHEETS = [
 ];
 const INCLUDED_COLUMNS = [
   "Timestamp","Sheet Name","Order No",
-  "Order Date","Delivery Date","Item","Design No","Branch Name",
-  "Salesman","Product Image","Order Form Photo","Remark",
-  "Unit","Delivery Type","Status","Jobber Name"
+  "Order Date","Delivery Date","Item","Design No",
+  "Branch Name","Salesman","Product Image","Order Form Photo",
+  "Remark","Unit","Delivery Type","Status","Jobber Name"
 ];
-
 
 let headers=[], rows=[], filteredRows=[], currentSort={index:null,dir:-1};
 let currentPage=1, rowsPerPage=25;
@@ -151,24 +150,30 @@ document.body.insertAdjacentHTML("afterbegin", "<pre>"+JSON.stringify(data,null,
 
 function combineSheetsObject(obj){
   const out=[INCLUDED_COLUMNS];
+  const normalise = h => String(h)
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\[.*?\]/g,"")      // remove stuff like [Row 1]
+    .replace(/[^a-z0-9]/g,"");       // remove spaces, dots, special chars
+
   FIXED_SHEETS.forEach(sheet=>{
     const sheetData=obj[sheet];
     if(!Array.isArray(sheetData)||sheetData.length<2)return;
-    const headers = sheetData[0].map(h => String(h).trim().toLowerCase().replace(/\./g,''));
+
+    const headers = sheetData[0].map(normalise);
+
     sheetData.slice(1).forEach(r=>{
       const mapped = INCLUDED_COLUMNS.map(col=>{
-        const idx = headers.indexOf(col.trim().toLowerCase().replace(/\./g,''));
-        return idx===-1 ? "" : (r[idx]||"");
+        const idx = headers.indexOf(normalise(col));
+        return idx===-1 ? "" : (r[idx] ?? "");
       });
-      mapped[0] = r[headers.indexOf("timestamp")] || "";
+      mapped[0] = r[headers.indexOf(normalise("Timestamp"))] || "";
       mapped[1] = sheet;
       out.push(mapped);
     });
   });
   return out;
 }
-
-
 function populateFilters() {
   const units = new Set();
   const sheetNames = new Set();
@@ -401,6 +406,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
