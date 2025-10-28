@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Vasansi Jaipur Order Dashboard</title>
 <style>
   body { font-family: "Segoe UI", sans-serif; background: #f7f8fa; padding: 20px; }
@@ -13,417 +13,204 @@
     padding: 6px 8px;
     text-align: left;
     font-size: 13px;
-    vertical-align: center;
+    vertical-align: middle;
     white-space: nowrap;
   }
-  th { background: #f2f2f2; position: sticky; top: 0; z-index: 2; cursor: pointer; }
-  th.sort-asc::after { content: " ▲"; }
-  th.sort-desc::after { content: " ▼"; }
-
+  th { background: #f2f2f2; position: sticky; top: 0; z-index: 2; }
   img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
 
-  .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 15px; }
-  select, input, button { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+  .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 15px; }
+  input, select, button { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
   button { background: #007bff; color: white; cursor: pointer; border: none; }
   button:hover { background: #0056b3; }
-  #searchBar { width: 260px; }
 
-  .save-btn { background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; }
-  .save-btn:hover { background: #218838; }
+  .save-btn { background: #28a745; color: white; padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer; }
+  .save-btn:disabled { background: #ccc; cursor: not-allowed; }
 
-  .remark-cell { white-space: normal; max-width: 400px; min-width: 150px; }
+  .remark-cell { white-space: normal; max-width: 300px; }
 
-  /* Pagination styling */
   .pagination { text-align: center; margin-top: 10px; }
-  .pagination button {
-    margin: 0 2px;
-    padding: 5px 10px;
-    border: 1px solid #007bff;
-    border-radius: 4px;
-    background: white;
-    color: #007bff;
-    cursor: pointer;
-  }
-.controls label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+  .pagination button { margin: 0 2px; padding: 5px 10px; border: 1px solid #007bff; background: white; color: #007bff; border-radius: 4px; cursor: pointer; }
   .pagination button.active { background: #007bff; color: white; }
-  .pagination button[disabled] { opacity: 0.4; cursor: not-allowed; }
-
-  /* Show entries dropdown */
-  #entriesSelect { border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; margin: 0 4px; }
-
-  .status-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 1010px; margin: 0 auto; }
-  .status-checkboxes label { font-size: 15px; display: flex; align-items: center; gap: 4px; }
 </style>
 </head>
 <body>
-
 <h1>💻 Vasansi Jaipur Order Dashboard</h1>
 
-<!-- Filters -->
 <div class="controls">
-  <label>Order No: <input type="text" id="filterOrderNo" placeholder="Enter order no..."></label>
-  <label>Order Date: <input type="date" id="filterOrderStart"> to <input type="date" id="filterOrderEnd"></label>
-  <label>Delivery Date: <input type="date" id="filterDeliveryStart"> to <input type="date" id="filterDeliveryEnd"></label>
+  <label>Order No: <input type="text" id="filterOrderNo"></label>
   <label>Unit: <select id="filterUnit"></select></label>
-<label>Sheet Name: <select id="filterSheet"></select></label>
-
-</div>
-
-<!-- Multi-status Filter -->
-<div class="controls">
-  <label><strong>Status:</strong></label>
-  <div class="status-checkboxes" id="statusCheckboxes"></div>
+  <label>Sheet: <select id="filterSheet"></select></label>
   <button onclick="applyFilters()">Apply</button>
   <button onclick="resetFilters()">Reset</button>
 </div>
 
-<!-- Search + Show Entries -->
-<div class="controls" style="justify-content: space-between; align-items: center;">
-  <input type="text" id="searchBar" placeholder="🔍 Search..." oninput="searchTable()">
-  <label>Show 
-    <select id="entriesSelect" onchange="changeEntries()">
-      <option value="10">10</option>
-      <option value="25" selected>25</option>
-      <option value="50">50</option>
-      <option value="100">100</option>
-    </select> entries
-  </label>
-</div>
-
 <table id="dataTable"></table>
-<div class="pagination" id="pagination"></div>
+<div id="pagination" class="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2kFMgF5F7k7-yvLeamZ5LZ4eiWqaMRj18K0XnZX1YYSuiwHbjoR1gJu1O9BDL_uo0/exec";  // Replace this
+/* ===================== CONFIG ===================== */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2kFMgF5F7k7-yvLeamZ5LZ4eiWqaMRj18K0XnZX1YYSuiwHbjoR1gJu1O9BDL_uo0/exec"; // ← replace this with your Apps Script /exec URL
 const FIXED_SHEETS = [
-  "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
-  "Exhibition Sales Order", "Wholesale Order"
+  "Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"
 ];
 const INCLUDED_COLUMNS = [
-  "Timestamp","Sheet Name","Order No",
-  "Order Date","Delivery Date","Item","Design No",
-  "Branch Name","Salesman","Product Image","Order Form Photo",
+  "Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item",
+  "Design No","Branch Name","Salesman","Product Image","Order Form Photo",
   "Remark","Unit","Delivery Type","Status","Jobber Name"
 ];
 
-let headers=[], rows=[], filteredRows=[], currentSort={index:null,dir:-1};
-let currentPage=1, rowsPerPage=25;
+let headers=[], rows=[], filteredRows=[], currentPage=1, rowsPerPage=25;
 
+/* ===================== HELPERS ===================== */
 const safeLower = v => (v==null?"":String(v).toLowerCase());
 const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
 
-function formatDateTime(val) {
-  if (!val) return "";
-  const d = new Date(val);
-  return isNaN(d)
-    ? val
-    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+function formatDateTime(val){
+  if(!val) return "";
+  const d=new Date(val);
+  return isNaN(d)?val:d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
 }
-
-
 function toThumb(url){
   if(!url||typeof url!=="string")return"";
-  const idMatch=url.match(/[-\w]{25,}/);
-  const id=idMatch?idMatch[0]:null;
-  return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:"";
+  const id=url.match(/[-\w]{25,}/);
+  return id?`https://drive.google.com/thumbnail?id=${id[0]}&sz=w200-h200`:"";
 }
 
+/* ===================== LOAD DATA ===================== */
 async function loadData(){
   document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
   try{
-    const res = await fetch(SCRIPT_URL);
-const data = await res.json();
-console.log("📦 Raw data from backend:", data);
-document.body.insertAdjacentHTML("afterbegin", "<pre>"+JSON.stringify(data,null,2)+"</pre>");
-    headers=combined[0].map(h=>h||"");
+    const res=await fetch(SCRIPT_URL);
+    const data=await res.json();
+    console.log("📦 Raw data:", data);
+    const combined=combineSheetsObject(data);
+    console.log("✅ Combined rows:", combined.length);
+    headers=combined[0];
     rows=clean(combined.slice(1));
-    rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
     filteredRows=rows;
     populateFilters();
     renderTable();
-  }catch(e){document.getElementById("dataTable").innerHTML=`<tr><td>❌ ${e.message}</td></tr>`;}
+  }catch(err){
+    document.getElementById("dataTable").innerHTML=`<tr><td>❌ ${err.message}</td></tr>`;
+  }
 }
 
+/* ===================== MERGE SHEETS ===================== */
 function combineSheetsObject(obj){
   const out=[INCLUDED_COLUMNS];
-  const normalise = h => String(h)
-    .trim()
-    .toLowerCase()
-    .replace(/\s*\[.*?\]/g,"")      // remove stuff like [Row 1]
-    .replace(/[^a-z0-9]/g,"");       // remove spaces, dots, special chars
-
-  FIXED_SHEETS.forEach(sheet=>{
-    const sheetData=obj[sheet];
-    if(!Array.isArray(sheetData)||sheetData.length<2)return;
-
-    const headers = sheetData[0].map(normalise);
-
-    sheetData.slice(1).forEach(r=>{
-      const mapped = INCLUDED_COLUMNS.map(col=>{
-        const idx = headers.indexOf(normalise(col));
-        return idx===-1 ? "" : (r[idx] ?? "");
+  const normalise=h=>String(h).trim().toLowerCase().replace(/\s*\[.*?\]/g,"").replace(/[^a-z0-9]/g,"");
+  FIXED_SHEETS.forEach(name=>{
+    const sh=obj[name];
+    if(!Array.isArray(sh)||sh.length<2)return;
+    const hdrs=sh[0].map(normalise);
+    sh.slice(1).forEach(r=>{
+      const mapped=INCLUDED_COLUMNS.map(col=>{
+        const idx=hdrs.indexOf(normalise(col));
+        return idx===-1?"":(r[idx]??"");
       });
-      mapped[0] = r[headers.indexOf(normalise("Timestamp"))] || "";
-      mapped[1] = sheet;
+      mapped[0]=r[hdrs.indexOf(normalise("timestamp"))]||"";
+      mapped[1]=name;
       out.push(mapped);
     });
   });
   return out;
 }
-function populateFilters() {
-  const units = new Set();
-  const sheetNames = new Set();
-  const statuses = [
-    "Order Received","Print Process","Print Received","For Work",
-    "From Work Received","Finishing","Stitching",
-    "Ready For Billing","Delivered","Hold"
-  ];
 
-  const uIdx = headers.indexOf("Unit");
-  const sIdx = headers.indexOf("Sheet Name");
-
-  rows.forEach(r => {
-    if (r[uIdx]) units.add(r[uIdx]);
-    if (r[sIdx]) sheetNames.add(r[sIdx]);
-  });
-
-  document.getElementById("filterUnit").innerHTML =
-    `<option value="">All</option>` + [...units].map(u => `<option>${u}</option>`).join("");
-
-  document.getElementById("filterSheet").innerHTML =
-    `<option value="">All</option>` + [...sheetNames].map(n => `<option>${n}</option>`).join("");
-
-  document.getElementById("statusCheckboxes").innerHTML =
-    statuses.map(s => `<label><input type="checkbox" value="${s}"> ${s}</label>`).join("");
+/* ===================== FILTERS ===================== */
+function populateFilters(){
+  const uSet=new Set(), sSet=new Set();
+  const iU=headers.indexOf("Unit"), iS=headers.indexOf("Sheet Name");
+  rows.forEach(r=>{ if(r[iU])uSet.add(r[iU]); if(r[iS])sSet.add(r[iS]); });
+  document.getElementById("filterUnit").innerHTML=`<option value="">All</option>`+[...uSet].map(u=>`<option>${u}</option>`).join("");
+  document.getElementById("filterSheet").innerHTML=`<option value="">All</option>`+[...sSet].map(s=>`<option>${s}</option>`).join("");
 }
 
-
 function applyFilters(){
-  const orderNo=safeLower(document.getElementById("filterOrderNo").value);
-  const oStart=document.getElementById("filterOrderStart").value,oEnd=document.getElementById("filterOrderEnd").value;
-  const dStart=document.getElementById("filterDeliveryStart").value,dEnd=document.getElementById("filterDeliveryEnd").value;
+  const oNo=safeLower(document.getElementById("filterOrderNo").value);
   const unit=document.getElementById("filterUnit").value;
-  const sheetName = document.getElementById("filterSheet").value;
-  const selStatuses=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
-  const iO=headers.indexOf("Order No."),iOD=headers.indexOf("Order Date"),iDD=headers.indexOf("Delivery Date"),iU=headers.indexOf("Unit"),iS=headers.indexOf("Status");
+  const sheet=document.getElementById("filterSheet").value;
+  const iO=headers.indexOf("Order No"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Sheet Name");
   filteredRows=rows.filter(r=>{
-    const od=new Date(r[iOD]||""),dd=new Date(r[iDD]||"");
-    return(!orderNo||safeLower(r[iO]).includes(orderNo))&&(!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
-(!unit||r[iU]===unit)&&(!selStatuses.length||selStatuses.includes(r[iS]))&&(!oStart||od>=new Date(oStart))&&(!oEnd||od<=new Date(oEnd+"T23:59:59"))&&(!dStart||dd>=new Date(dStart))&&(!dEnd||dd<=new Date(dEnd+"T23:59:59"));
+    return (!oNo||safeLower(r[iO]).includes(oNo)) &&
+           (!unit||r[iU]===unit) &&
+           (!sheet||r[iS]===sheet);
   });
-  currentPage=1;renderTable();
+  currentPage=1; renderTable();
 }
 
 function resetFilters(){
-  document.querySelectorAll("input,select").forEach(e=>e.value="");
-  document.querySelectorAll(".status-checkboxes input").forEach(i=>i.checked=false);
-  filteredRows=rows;currentPage=1;renderTable();
+  document.querySelectorAll("#filterOrderNo,#filterUnit,#filterSheet").forEach(e=>e.value="");
+  filteredRows=rows; currentPage=1; renderTable();
 }
 
+/* ===================== TABLE RENDER ===================== */
 function renderTable(){
   const tbl=document.getElementById("dataTable");
-  if(!filteredRows.length){
-    tbl.innerHTML="<tr><td>No data found</td></tr>";
-    document.getElementById("pagination").innerHTML="";
-    return;
-  }
+  if(!filteredRows.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; return; }
 
-  const start=(currentPage-1)*rowsPerPage;
-  const end=start+rowsPerPage;
-  const page=filteredRows.slice(start,end);
+  const start=(currentPage-1)*rowsPerPage, end=start+rowsPerPage, page=filteredRows.slice(start,end);
+  const today=new Date(); today.setHours(0,0,0,0);
+  const dIdx=headers.indexOf("Delivery Date");
 
   let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
-
-  const deliveryIdx = headers.indexOf("Delivery Date");
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
   page.forEach(r=>{
-    // ✅ Highlight when Delivery Date < today (overdue)
-    const deliveryDate = new Date(r[deliveryIdx] || "");
-    const highlight = (deliveryDate < today && !isNaN(deliveryDate))
-      ? ' style="background:#ffcccc;"'  // light red for overdue
-      : '';
-
-    html += `<tr${highlight}>`;
-
+    const d=new Date(r[dIdx]); const highlight=(d<today&&!isNaN(d))?' style="background:#ffcccc"':'';
+    html+=`<tr${highlight}>`;
     headers.forEach((h,i)=>{
       let val=r[i]||"",hLow=safeLower(h);
-
-      if(hLow.includes("timestamp")||hLow.includes("date")) {
-        val=formatDateTime(val);
+      if(hLow.includes("date")) val=formatDateTime(val);
+      else if(hLow.includes("image")||hLow.includes("photo")){
+        const t=toThumb(val); if(t) val=`<a href="${val}" target="_blank"><img src="${t}"></a>`;
       }
-      else if((hLow.includes("image")||hLow.includes("photo"))&&val.includes("drive.google.com")){
-        const t=toThumb(val);
-        val=t?`<a href="${val}" target="_blank"><img src="${t}"></a>`:val;
-      }
-      else if(h==="Status"){
-        const sheetStatus=safeLower(r[i]);
-        const allStatuses=[
-          "Order Received","Print Process","Print Received","For Work",
-          "From Work Received","Finishing","Stitching","Ready For Billing",
-          "Delivered","Hold"
-        ];
-        val="<select>"+allStatuses.map(s=>{
-          const sel=safeLower(s)===sheetStatus?"selected":"";
-          return `<option ${sel}>${s}</option>`;
-        }).join("")+"</select>";
-      }
-      else if(h==="Remark") {
-        val=`<div class='remark-cell'>${val}</div>`;
-      }
-
       html+=`<td>${val}</td>`;
     });
-
-    html+=`
-      <td>
-        <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-        <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No.")]}')">🧾 Print</button>
-      </td>
-    </tr>`;
+    html+=`<td><button class="save-btn" onclick="saveRow(this,'${r[1]}')">Save</button></td></tr>`;
   });
-
   tbl.innerHTML=html+"</tbody>";
   renderPagination();
 }
 
+/* ===================== PAGINATION ===================== */
 function renderPagination(){
-  const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
+  const total=Math.ceil(filteredRows.length/rowsPerPage);
   const pg=document.getElementById("pagination");
-  if(totalPages<=1){pg.innerHTML="";return;}
-  let html=`<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Previous</button>`;
-  const startPage=Math.max(1,currentPage-2);
-  const endPage=Math.min(totalPages,startPage+4);
-  for(let i=startPage;i<=endPage;i++){
+  if(total<=1){ pg.innerHTML=""; return; }
+  let html="";
+  for(let i=1;i<=total;i++){
     html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
   }
-  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
   pg.innerHTML=html;
 }
+function gotoPage(p){ currentPage=p; renderTable(); }
 
-function gotoPage(p){currentPage=p;renderTable();}
-function gotoPrev(){if(currentPage>1){currentPage--;renderTable();}}
-function gotoNext(total){if(currentPage<total){currentPage++;renderTable();}}
-function changeEntries(){rowsPerPage=parseInt(document.getElementById("entriesSelect").value);currentPage=1;renderTable();}
+/* ===================== SAVE STATUS ===================== */
+async function saveRow(btn,sheet){
+  const tr=btn.closest("tr"),tds=[...tr.children];
+  const iO=headers.indexOf("Order No");
+  const orderNo=tds[iO]?.innerText.trim();
+  const iStatus=headers.indexOf("Status");
+  const status=tds[iStatus]?.innerText.trim()||"";
+  const iRemark=headers.indexOf("Remark");
+  const remark=tds[iRemark]?.innerText.trim()||"";
 
-function searchTable(){
-  const term=safeLower(document.getElementById("searchBar").value);
-  filteredRows=rows.filter(r=>r.some(c=>safeLower(c).includes(term)));
-  currentPage=1;renderTable();
-}
+  if(!orderNo){ alert("❌ Missing Order No"); return; }
 
-async function saveRow(btn, sheet) {
-  const tr = btn.closest("tr");
-  const tds = [...tr.children];
+  btn.disabled=true; const old=btn.innerText; btn.innerText="Saving...";
 
-  // ✅ Try to find the order number robustly
-  let orderNo = "";
-  const headerVariants = ["Order No.", "Order No", "Order Number"];
-
-  for (const name of headerVariants) {
-    const iO = headers.findIndex(h => h.trim() === "Order No.");
-    if (iO >= 0) {
-      orderNo = tds[iO]?.innerText?.trim() || "";
-      if [order  No] break;
-    }
-  }
-
-  if (!orderNo) {
-    console.error("⚠️ Could not locate Order No column. Headers are:", headers);
-    alert("❌ Missing Order No. (Check column name in Sheet header)");
-    return;
-  }
-
-  const sel = tr.querySelector("select");
-  const rem = tr.querySelector(".remark-cell");
-  const status = sel ? sel.value : "";
-  const remark = rem ? rem.innerText.trim() : "";
-
-
-  if (!orderNo) return alert("❌ Missing Order No.");
-
-  // ✅ Disable button & show saving text
-  btn.disabled = true;
-  const originalText = btn.innerText;
-  btn.innerText = "Saving...";
-  btn.style.background = "#ffc107";
-  btn.style.color = "#000";
-
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sheetName: sheet, orderNo, status, remark })
-    });
-
-    const j = await res.json();
-    if (j.success) {
-      btn.innerText = "Saved ✅";
-      btn.style.background = "#28a745";
-      btn.style.color = "#fff";
-      setTimeout(() => {
-        btn.innerText = originalText;
-        btn.style.background = "#28a745";
-        btn.disabled = false;
-      }, 1500);
-    } else {
-      throw new Error(j.error || "Failed to update");
-    }
-  } catch (e) {
-    alert("❌ " + e.message);
-    btn.innerText = originalText;
-    btn.style.background = "#28a745";
-    btn.disabled = false;
+  try{
+    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
+    const j=await res.json();
+    if(j.success){
+      btn.innerText="Saved ✅"; setTimeout(()=>{btn.innerText=old;btn.disabled=false;},1500);
+    }else throw new Error(j.error||"Failed");
+  }catch(e){
+    alert("❌ "+e.message); btn.innerText=old; btn.disabled=false;
   }
 }
-
 
 loadData();
-async function generateOrderPrint(sheetName, orderNo) {
-  if (!confirm("Generate Order Print for " + orderNo + "?")) return;
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "print", sheetName, orderNo })
-    });
-    const data = await res.json();
-    if (data.success && data.url) {
-      window.open(data.url, "_blank");
-    } else {
-      alert("❌ " + (data.error || "Failed to generate PDF"));
-    }
-  } catch (err) {
-    alert("❌ " + err.message);
-  }
-}
-
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
