@@ -134,9 +134,9 @@ function toThumb(url){
 async function loadData(){
   document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
   try{
-    const res=await fetch(SCRIPT_URL);
-    const data=await res.json();
-    const combined=combineSheetsObject(data);
+    const res = await fetch(SCRIPT_URL);
+const data = await res.json();
+console.log("📦 Data received from backend:", data);
     headers=combined[0].map(h=>h||"");
     rows=clean(combined.slice(1));
     rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
@@ -399,6 +399,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
