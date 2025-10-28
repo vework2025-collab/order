@@ -313,20 +313,30 @@ function searchTable(){
 async function saveRow(btn, sheet) {
   const tr = btn.closest("tr");
   const tds = [...tr.children];
-  const orderCell = tr.querySelector("td.order-no");
-  let orderNo = orderCell ? orderCell.innerText.trim() : "";
 
- if (!orderNo) {
-  const iO = headers.findIndex(h => h.trim() === "Order No.");
-  if (iO >= 0) {
-    orderNo = tds[iO]?.innerText?.trim() || "";
+  // ✅ Try to find the order number robustly
+  let orderNo = "";
+  const headerVariants = ["Order No.", "Order No", "Order Number"];
+
+  for (const name of headerVariants) {
+    const iO = headers.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
+    if (iO >= 0) {
+      orderNo = tds[iO]?.innerText?.trim() || "";
+      if (orderNo) break;
+    }
   }
-}
+
+  if (!orderNo) {
+    console.error("⚠️ Could not locate Order No column. Headers are:", headers);
+    alert("❌ Missing Order No. (Check column name in Sheet header)");
+    return;
+  }
 
   const sel = tr.querySelector("select");
   const rem = tr.querySelector(".remark-cell");
   const status = sel ? sel.value : "";
   const remark = rem ? rem.innerText.trim() : "";
+
 
   if (!orderNo) return alert("❌ Missing Order No.");
 
@@ -389,6 +399,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
