@@ -319,10 +319,10 @@ async function saveRow(btn, sheet) {
   const headerVariants = ["Order No.", "Order No", "Order Number"];
 
   for (const name of headerVariants) {
-    const iO = headers.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
+    const iO = headers.findIndex(h => h.trim().toLowerCase().replace(/\./g,"") === "order no");
     if (iO >= 0) {
       orderNo = tds[iO]?.innerText?.trim() || "";
-      if (orderNo) break;
+      if (order  No) break;
     }
   }
 
@@ -399,6 +399,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
