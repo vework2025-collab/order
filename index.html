@@ -1,45 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="data:,">
 <meta charset="UTF-8">
 <title>Vasansi Jaipur Order Dashboard</title>
 <style>
-  body { font-family: "Segoe UI", sans-serif; background: #f7f8fa; padding: 20px; }
-  h1 { text-align: center; margin-bottom: 15px; }
-
-  table { width: 100%; border-collapse: collapse; background: white; }
-  th, td {
-    border: 1px solid #ddd;
-    padding: 6px 8px;
-    text-align: left;
-    font-size: 13px;
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-  th { background: #f2f2f2; position: sticky; top: 0; z-index: 2; }
-  img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
-
-  .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 15px; }
-  input, select, button { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
-  button { background: #007bff; color: white; cursor: pointer; border: none; }
-  button:hover { background: #0056b3; }
-
-  .save-btn { background: #28a745; color: white; padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer; }
-  .save-btn:disabled { background: #ccc; cursor: not-allowed; }
-
-  .remark-cell { white-space: normal; max-width: 300px; }
-
-  .pagination { text-align: center; margin-top: 10px; }
-  .pagination button { margin: 0 2px; padding: 5px 10px; border: 1px solid #007bff; background: white; color: #007bff; border-radius: 4px; cursor: pointer; }
-  .pagination button.active { background: #007bff; color: white; }
+  body{font-family:'Segoe UI',sans-serif;background:#f7f8fa;padding:15px;}
+  h2{text-align:center;margin:10px 0;}
+  table{width:100%;border-collapse:collapse;background:white;}
+  th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:13px;}
+  th{background:#f2f2f2;}
+  img{width:80px;height:100px;object-fit:cover;border-radius:5px;}
+  select,input,button{padding:5px;margin:3px;}
+  button{background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .save-btn{background:#28a745;}
+  .save-btn:disabled{background:#ccc;}
 </style>
 </head>
 <body>
-<h1>💻 Vasansi Jaipur Order Dashboard</h1>
+<h2>💻 Vasansi Jaipur Order Dashboard</h2>
 
-<div class="controls">
-  <label>Order No: <input type="text" id="filterOrderNo"></label>
+<div style="margin-bottom:10px;">
+  <label>Order No: <input type="text" id="filterOrder"></label>
   <label>Unit: <select id="filterUnit"></select></label>
   <label>Sheet: <select id="filterSheet"></select></label>
   <button onclick="applyFilters()">Apply</button>
@@ -47,173 +28,108 @@
 </div>
 
 <table id="dataTable"></table>
-<div id="pagination" class="pagination"></div>
 
 <script>
-/* ===================== CONFIG ===================== */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2kFMgF5F7k7-yvLeamZ5LZ4eiWqaMRj18K0XnZX1YYSuiwHbjoR1gJu1O9BDL_uo0/exec"; // ← replace this with your Apps Script /exec URL
-const FIXED_SHEETS = [
-  "Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"
-];
-const INCLUDED_COLUMNS = [
-  "Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item",
-  "Design No","Branch Name","Salesman","Product Image","Order Form Photo",
-  "Remark","Unit","Delivery Type","Status","Jobber Name"
-];
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2kFMgF5F7k7-yvLeamZ5LZ4eiWqaMRj18K0XnZX1YYSuiwHbjoR1gJu1O9BDL_uo0/exec";
+const SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
+const INCLUDED = ["Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Branch Name","Salesman","Product Image","Order Form Photo","Remark","Unit","Delivery Type","Status","Jobber Name"];
+let headers=[],rows=[],filtered=[];
 
-let headers=[], rows=[], filteredRows=[], currentPage=1, rowsPerPage=25;
-
-/* ===================== HELPERS ===================== */
-const safeLower = v => (v==null?"":String(v).toLowerCase());
-const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
-
-function formatDateTime(val){
-  if(!val) return "";
-  const d=new Date(val);
-  return isNaN(d)?val:d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
-}
-function toThumb(url){
-  if(!url||typeof url!=="string")return"";
-  const id=url.match(/[-\w]{25,}/);
-  return id?`https://drive.google.com/thumbnail?id=${id[0]}&sz=w200-h200`:"";
-}
-
-/* ===================== LOAD DATA ===================== */
 async function loadData(){
-  document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
-  try{
-    const res=await fetch(SCRIPT_URL);
-    const data=await res.json();
-    console.log("📦 Raw data:", data);
-    const combined=combineSheetsObject(data);
-    console.log("✅ Combined rows:", combined.length);
-    headers=combined[0];
-    rows=clean(combined.slice(1));
-    filteredRows=rows;
-    populateFilters();
-    renderTable();
-  }catch(err){
-    document.getElementById("dataTable").innerHTML=`<tr><td>❌ ${err.message}</td></tr>`;
-  }
+  const tbl=document.getElementById("dataTable");
+  tbl.innerHTML="<tr><td>Loading...</td></tr>";
+  const res=await fetch(SCRIPT_URL);
+  const data=await res.json();
+  const combined=combineSheets(data);
+  headers=combined[0]; rows=combined.slice(1); filtered=rows;
+  renderTable(); fillFilters();
 }
 
-/* ===================== MERGE SHEETS ===================== */
-function combineSheetsObject(obj){
-  const out=[INCLUDED_COLUMNS];
-  const normalise=h=>String(h).trim().toLowerCase().replace(/\s*\[.*?\]/g,"").replace(/[^a-z0-9]/g,"");
-  FIXED_SHEETS.forEach(name=>{
-    const sh=obj[name];
-    if(!Array.isArray(sh)||sh.length<2)return;
-    const hdrs=sh[0].map(normalise);
+function combineSheets(obj){
+  const out=[INCLUDED];
+  const norm=s=>String(s).trim().toLowerCase().replace(/\s*\[.*?\]/g,"").replace(/[^a-z0-9]/g,"");
+  SHEETS.forEach(name=>{
+    const sh=obj[name]; if(!sh||sh.length<2)return;
+    const hdr=sh[0].map(norm);
     sh.slice(1).forEach(r=>{
-      const mapped=INCLUDED_COLUMNS.map(col=>{
-        const idx=hdrs.indexOf(normalise(col));
-        return idx===-1 ? "" : (r[idx] ?? "");
+      const row=INCLUDED.map(h=>{
+        const i=hdr.indexOf(norm(h));
+        return i==-1?"":r[i]||"";
       });
-      mapped[0]=r[hdrs.indexOf(normalise("timestamp"))]||"";
-      mapped[1]=name;
-      out.push(mapped);
+      row[0]=r[hdr.indexOf(norm("timestamp"))]||"";
+      row[1]=name; out.push(row);
     });
   });
   return out;
 }
 
-/* ===================== FILTERS ===================== */
-function populateFilters(){
-  const uSet=new Set(), sSet=new Set();
-  const iU=headers.indexOf("Unit"), iS=headers.indexOf("Sheet Name");
-  rows.forEach(r=>{ if(r[iU])uSet.add(r[iU]); if(r[iS])sSet.add(r[iS]); });
-  document.getElementById("filterUnit").innerHTML=`<option value="">All</option>`+[...uSet].map(u=>`<option>${u}</option>`).join("");
-  document.getElementById("filterSheet").innerHTML=`<option value="">All</option>`+[...sSet].map(s=>`<option>${s}</option>`).join("");
-}
-
-function applyFilters(){
-  const oNo=safeLower(document.getElementById("filterOrderNo").value);
-  const unit=document.getElementById("filterUnit").value;
-  const sheet=document.getElementById("filterSheet").value;
-  const iO=headers.indexOf("Order No"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Sheet Name");
-  filteredRows=rows.filter(r=>{
-    return (!oNo||safeLower(r[iO]).includes(oNo)) &&
-           (!unit||r[iU]===unit) &&
-           (!sheet||r[iS]===sheet);
-  });
-  currentPage=1; renderTable();
-}
-
-function resetFilters(){
-  document.querySelectorAll("#filterOrderNo,#filterUnit,#filterSheet").forEach(e=>e.value="");
-  filteredRows=rows; currentPage=1; renderTable();
-}
-
-/* ===================== TABLE RENDER ===================== */
 function renderTable(){
   const tbl=document.getElementById("dataTable");
-  if(!filteredRows.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; return; }
-
-  const start=(currentPage-1)*rowsPerPage, end=start+rowsPerPage, page=filteredRows.slice(start,end);
+  if(!filtered.length){tbl.innerHTML="<tr><td>No data found</td></tr>";return;}
   const today=new Date(); today.setHours(0,0,0,0);
   const dIdx=headers.indexOf("Delivery Date");
-
-  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
-  page.forEach(r=>{
-    const d=new Date(r[dIdx]); const highlight=(d<today&&!isNaN(d))?' style="background:#ffcccc"':'';
-    html+=`<tr${highlight}>`;
+  let html="<tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Action</th></tr>";
+  filtered.forEach(r=>{
+    const d=new Date(r[dIdx]);
+    const overdue=(d<today&&!isNaN(d));
+    html+=`<tr${overdue?' style="background:#ffcccc"':''}>`;
     headers.forEach((h,i)=>{
-      let val=r[i]||"",hLow=safeLower(h);
-      if(hLow.includes("date")) val=formatDateTime(val);
+      let val=r[i]||"",hLow=h.toLowerCase();
+      if(hLow.includes("date")) val=formatDate(val);
       else if(hLow.includes("image")||hLow.includes("photo")){
         const t=toThumb(val); if(t) val=`<a href="${val}" target="_blank"><img src="${t}"></a>`;
+      }
+      else if(h==="Status"){
+        const statuses=["Order Received","Print Process","Print Received","For Work","From Work Received","Stitching","Finishing","Ready For Billing","Delivered"];
+        val=`<select>${statuses.map(s=>`<option ${s===r[i]?"selected":""}>${s}</option>`).join("")}</select>`;
       }
       html+=`<td>${val}</td>`;
     });
     html+=`<td><button class="save-btn" onclick="saveRow(this,'${r[1]}')">Save</button></td></tr>`;
   });
-  tbl.innerHTML=html+"</tbody>";
-  renderPagination();
+  tbl.innerHTML=html;
 }
 
-/* ===================== PAGINATION ===================== */
-function renderPagination(){
-  const total=Math.ceil(filteredRows.length/rowsPerPage);
-  const pg=document.getElementById("pagination");
-  if(total<=1){ pg.innerHTML=""; return; }
-  let html="";
-  for(let i=1;i<=total;i++){
-    html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
-  }
-  pg.innerHTML=html;
-}
-function gotoPage(p){ currentPage=p; renderTable(); }
+function toThumb(u){const id=u.match(/[-\w]{25,}/);return id?`https://drive.google.com/thumbnail?id=${id[0]}&sz=w100-h100`:"";}
+function formatDate(v){if(!v)return"";const d=new Date(v);return isNaN(d)?v:d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});}
 
-/* ===================== SAVE STATUS ===================== */
+function fillFilters(){
+  const uSet=new Set(), sSet=new Set();
+  const iU=headers.indexOf("Unit"), iS=headers.indexOf("Sheet Name");
+  rows.forEach(r=>{if(r[iU])uSet.add(r[iU]);if(r[iS])sSet.add(r[iS]);});
+  document.getElementById("filterUnit").innerHTML=`<option value="">All</option>`+[...uSet].map(u=>`<option>${u}</option>`).join("");
+  document.getElementById("filterSheet").innerHTML=`<option value="">All</option>`+[...sSet].map(s=>`<option>${s}</option>`).join("");
+}
+
+function applyFilters(){
+  const o=document.getElementById("filterOrder").value.toLowerCase();
+  const u=document.getElementById("filterUnit").value;
+  const s=document.getElementById("filterSheet").value;
+  const iO=headers.indexOf("Order No"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Sheet Name");
+  filtered=rows.filter(r=>(!o||r[iO].toLowerCase().includes(o))&&(!u||r[iU]===u)&&(!s||r[iS]===s));
+  renderTable();
+}
+function resetFilters(){document.querySelectorAll("#filterOrder,#filterUnit,#filterSheet").forEach(e=>e.value="");filtered=rows;renderTable();}
+
 async function saveRow(btn,sheet){
   const tr=btn.closest("tr"),tds=[...tr.children];
-  const iO=headers.indexOf("Order No");
-  const orderNo=tds[iO]?.innerText.trim();
-  const iStatus=headers.indexOf("Status");
-  const status=tds[iStatus]?.innerText.trim()||"";
-  const iRemark=headers.indexOf("Remark");
-  const remark=tds[iRemark]?.innerText.trim()||"";
-
-  if(!orderNo){ alert("❌ Missing Order No"); return; }
-
-  btn.disabled=true; const old=btn.innerText; btn.innerText="Saving...";
-
+  const iO=headers.indexOf("Order No"), iS=headers.indexOf("Status"), iR=headers.indexOf("Remark");
+  const orderNo=tds[iO]?.innerText.trim()||"";
+  const statusSel=tds[iS].querySelector("select");
+  const status=statusSel?statusSel.value:"";
+  const remark=tds[iR]?.innerText.trim()||"";
+  if(!orderNo){alert("❌ Missing Order No");return;}
+  btn.disabled=true;const old=btn.innerText;btn.innerText="Saving...";
   try{
     const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
     const j=await res.json();
-    if(j.success){
-      btn.innerText="Saved ✅"; setTimeout(()=>{btn.innerText=old;btn.disabled=false;},1500);
-    }else throw new Error(j.error||"Failed");
-  }catch(e){
-    alert("❌ "+e.message); btn.innerText=old; btn.disabled=false;
-  }
+    if(j.success){btn.innerText="Saved ✅";setTimeout(()=>{btn.innerText=old;btn.disabled=false;},1500);}
+    else throw new Error(j.error||"Update failed");
+  }catch(e){alert("❌ "+e.message);btn.innerText=old;btn.disabled=false;}
 }
 
 loadData();
 </script>
 </body>
 </html>
-
-
