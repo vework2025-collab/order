@@ -105,9 +105,11 @@ const FIXED_SHEETS = [
 ];
 const INCLUDED_COLUMNS = [
   "Timestamp","Sheet Name","Order No",
-  "Order Date","Delivery Date","Item","Design No","Unit",
-  "Product Image","Order Form Photo","Remark","Status","Jobber Name"
+  "Order Date","Delivery Date","Item","Design No","Branch Name",
+  "Salesman","Product Image","Order Form Photo","Remark",
+  "Unit","Delivery Type","Status","Jobber Name"
 ];
+
 
 let headers=[], rows=[], filteredRows=[], currentSort={index:null,dir:-1};
 let currentPage=1, rowsPerPage=25;
@@ -400,6 +402,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
