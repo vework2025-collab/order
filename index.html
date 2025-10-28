@@ -79,10 +79,17 @@ function renderTable(){
       else if(hLow.includes("image")||hLow.includes("photo")){
         const t=toThumb(val); if(t) val=`<a href="${val}" target="_blank"><img src="${t}"></a>`;
       }
-      else if(h==="Status"){
-        const statuses=["Order Received","Print Process","Print Received","For Work","From Work Received","Stitching","Finishing","Ready For Billing","Delivered"];
-        val=`<select>${statuses.map(s=>`<option ${s===r[i]?"selected":""}>${s}</option>`).join("")}</select>`;
-      }
+      else if(h.toLowerCase().trim() === "status"){
+  const statuses = [
+    "Order Received","Print Process","Print Received","For Work",
+    "From Work Received","Stitching","Finishing",
+    "Ready For Billing","Delivered"
+  ];
+  val = `<select>
+           ${statuses.map(s=>`<option ${s===r[i]?"selected":""}>${s}</option>`).join("")}
+         </select>`;
+}
+
       html+=`<td>${val}</td>`;
     });
     html+=`<td><button class="save-btn" onclick="saveRow(this,'${r[1]}')">Save</button></td></tr>`;
@@ -133,3 +140,4 @@ loadData();
 </script>
 </body>
 </html>
+
