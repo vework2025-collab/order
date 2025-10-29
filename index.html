@@ -308,29 +308,22 @@ loadData();
 async function generateOrderPrint(sheetName, orderNo) {
   if (!confirm("Generate Order Print for " + orderNo + "?")) return;
   try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "print", sheetName, orderNo })
-    });
-    const data = await res.json();
-    if (data.success && data.pdf) {
-      const pdfWindow = window.open("");
-      pdfWindow.document.write(
-        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${data.pdf}'></iframe>`
-      );
-    } else {
-      alert("❌ " + (data.error || "Failed to generate PDF"));
-    }
-  } catch (err) {
-    alert("❌ " + err.message);
-  }
-}
+    // inside saveRow(...)
+const res = await fetch(SCRIPT_URL, {
+  method: "POST",
+  headers: { "Content-Type": "text/plain;charset=utf-8" }, // <-- important
+  body: JSON.stringify({ sheetName: sheet, orderNo, status, remark })
+});
+const j = await res.json();
+if (j.success) alert("✅ Updated successfully");
+else throw new Error(j.error || "Failed");
+
 
 
 </script>
 </body>
 </html>
+
 
 
 
