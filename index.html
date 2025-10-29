@@ -314,8 +314,11 @@ async function generateOrderPrint(sheetName, orderNo) {
       body: JSON.stringify({ action: "print", sheetName, orderNo })
     });
     const data = await res.json();
-    if (data.success && data.url) {
-      window.open(data.url, "_blank");
+    if (data.success && data.pdf) {
+      const pdfWindow = window.open("");
+      pdfWindow.document.write(
+        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${data.pdf}'></iframe>`
+      );
     } else {
       alert("❌ " + (data.error || "Failed to generate PDF"));
     }
@@ -323,14 +326,12 @@ async function generateOrderPrint(sheetName, orderNo) {
     alert("❌ " + err.message);
   }
 }
-function generateOrderPrintUrl(sheetName, orderNo) {
-  // This is just a placeholder for now
-  return "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=pdf";
-}
+
 
 </script>
 </body>
 </html>
+
 
 
 
