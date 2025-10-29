@@ -312,6 +312,8 @@ async function generateOrderPrint(sheetName, orderNo) {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
 body: JSON.stringify({ sheetName: sheet, orderNo, status, remark })
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+body: JSON.stringify({ action: "print", sheetName, orderNo })
 
     });
     const data = await res.json();
@@ -332,6 +334,7 @@ function generateOrderPrintUrl(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
