@@ -310,8 +310,9 @@ async function generateOrderPrint(sheetName, orderNo) {
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "print", sheetName, orderNo })
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+body: JSON.stringify({ sheetName: sheet, orderNo, status, remark })
+
     });
     const data = await res.json();
     if (data.success && data.url) {
@@ -331,6 +332,7 @@ function generateOrderPrintUrl(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
