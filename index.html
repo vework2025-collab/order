@@ -104,8 +104,8 @@ const FIXED_SHEETS = [
   "Exhibition Sales Order", "Wholesale Order"
 ];
 const INCLUDED_COLUMNS = [
-  "Timestamp","Sheet Name","Order No. ",
-  "Order Date","Delivery Date","Item","Design No. ","Unit",
+  "Timestamp","Sheet Name","Order No",
+  "Order Date","Delivery Date","Item","Design No","Unit",
   "Product Image","Order Form Photo","Remark","Status","Jobber Name"
 ];
 
@@ -202,7 +202,7 @@ function applyFilters(){
   const unit=document.getElementById("filterUnit").value;
   const sheetName = document.getElementById("filterSheet").value;
   const selStatuses=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
-  const iO=headers.indexOf("Order No."),iOD=headers.indexOf("Order Date"),iDD=headers.indexOf("Delivery Date"),iU=headers.indexOf("Unit"),iS=headers.indexOf("Status");
+  const iO=headers.indexOf("Order No"),iOD=headers.indexOf("Order Date"),iDD=headers.indexOf("Delivery Date"),iU=headers.indexOf("Unit"),iS=headers.indexOf("Status");
   filteredRows=rows.filter(r=>{
     const od=new Date(r[iOD]||""),dd=new Date(r[iDD]||"");
     return(!orderNo||safeLower(r[iO]).includes(orderNo))&&(!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
@@ -227,7 +227,7 @@ function renderTable(){
     html+="<tr>";
     headers.forEach((h,i)=>{
       let hClean = h.trim();
-      let tdClass = hClean === 'Order No.' ? ' class="order-no"' : '';
+      let tdClass = hClean === 'Order No' ? ' class="order-no"' : '';
       let val=r[i]||"",hLow=safeLower(h);
       if(hLow.includes("timestamp"))val=formatDateTime(val);
       else if(hLow.includes("date"))val=formatDateTime(val);
@@ -247,7 +247,7 @@ function renderTable(){
     html+=`
   <td>
     <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No.")]}')">🧾 Print</button>
+    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
   </td>
 </tr>`;
 
@@ -287,7 +287,7 @@ async function saveRow(btn,sheet){
   const orderCell = tr.querySelector("td.order-no");
   let orderNo = orderCell ? orderCell.innerText.trim() : "";
   if (!orderNo) {
-    const iO = headers.findIndex(h => h.trim() === "Order No.");
+    const iO = headers.findIndex(h => h.trim() === "Order No");
     if (iO >= 0) {
       orderNo = tds[iO]?.innerText?.trim() || "";
     }
@@ -295,7 +295,7 @@ async function saveRow(btn,sheet){
   console.log("🧾 Extracted Order No:", orderNo);
   const sel=tr.querySelector("select"),rem=tr.querySelector(".remark-cell");
   const status=sel?sel.value:"",remark=rem?rem.innerText.trim():"";
-  if(!orderNo)return alert("❌ Missing Order No.");
+  if(!orderNo)return alert("❌ Missing Order No");
   try{
     const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
     const j=await res.json();
@@ -326,3 +326,4 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
