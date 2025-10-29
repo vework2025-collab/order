@@ -98,7 +98,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8G50uzvdj0jwYE_0qnRut1SjBcagTPvn9fd_ZqKM55-6vcncQUb9xCUaoDLYrSeU/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMu_iWnaHDBFyXjmVjjFahRpxiwo81BxvRx5fNQPOFK65XjOqtaFXinWFLqR4gluJE_Q/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -287,7 +287,8 @@ async function saveRow(btn,sheet){
   const orderCell = tr.querySelector("td.order-no");
   let orderNo = orderCell ? orderCell.innerText.trim() : "";
   if (!orderNo) {
-    const iO = headers.findIndex(h => h.trim() === "Order No");
+    const iO = headers.findIndex(h =>
+  h.replace(/\./g, "").trim().toLowerCase().includes("order no"));
     if (iO >= 0) {
       orderNo = tds[iO]?.innerText?.trim() || "";
     }
@@ -326,5 +327,6 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
