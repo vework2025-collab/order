@@ -171,9 +171,9 @@ function populateFilters() {
   const units = new Set();
   const sheetNames = new Set();
   const statuses = [
-    "Order Received","Print Process","Print Received","For Work",
-    "From Work Received","Finishing","Stitching",
-    "Ready For Billing","Delivered","Hold"
+    "Order Received","Dye","Print Process","Print Received","For Work",
+    "From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
+    "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"
   ];
 
   const uIdx = headers.indexOf("Unit");
@@ -331,6 +331,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
