@@ -1,362 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Vasansi Jaipur Order Dashboard</title>
-<style>
-  body { font-family: "Segoe UI", sans-serif; background: #f7f8fa; padding: 20px; }
-  h1 { text-align: center; margin-bottom: 15px; }
-
-  table { width: 100%; border-collapse: collapse; background: white; }
-  th, td {
-    border: 1px solid #ddd;
-    padding: 6px 8px;
-    text-align: left;
-    font-size: 13px;
-    vertical-align: center;
-    white-space: nowrap;
-  }
-  th { background: #f2f2f2; position: sticky; top: 0; z-index: 2; cursor: pointer; }
-  th.sort-asc::after { content: " ▲"; }
-  th.sort-desc::after { content: " ▼"; }
-
-  img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
-
-  .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 15px; }
-  select, input, button { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
-  button { background: #007bff; color: white; cursor: pointer; border: none; }
-  button:hover { background: #0056b3; }
-  #searchBar { width: 260px; }
-
-  .save-btn { background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; }
-  .save-btn:hover { background: #218838; }
-
-  .remark-cell { white-space: normal; max-width: 400px; min-width: 150px; }
-
-  /* Pagination styling */
-  .pagination { text-align: center; margin-top: 10px; }
-  .pagination button {
-    margin: 0 2px;
-    padding: 5px 10px;
-    border: 1px solid #007bff;
-    border-radius: 4px;
-    background: white;
-    color: #007bff;
-    cursor: pointer;
-  }
-.controls label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-  .pagination button.active { background: #007bff; color: white; }
-  .pagination button[disabled] { opacity: 0.4; cursor: not-allowed; }
-
-  /* Show entries dropdown */
-  #entriesSelect { border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; margin: 0 4px; }
-
-  .status-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 1010px; margin: 0 auto; }
-  .status-checkboxes label { font-size: 15px; display: flex; align-items: center; gap: 4px; }
-</style>
+  <meta charset="UTF-8">
+  <title>VEWORK 2025 Orders</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+    h1 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 13px; }
+    th { background: #f5f5f5; position: sticky; top: 0; }
+    tr:nth-child(even) { background: #fafafa; }
+    tr.overdue { background: #ffcccc !important; }     /* 🔴 overdue */
+    tr.today { background: #fff3b0 !important; }       /* 🟡 due today */
+    tr.future { background: #d7ffd7 !important; }      /* 🟢 upcoming */
+    tr.nodate { background: #f0f0f0 !important; }      /* ⚪️ no date */
+    .filters { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-bottom: 10px; }
+    .filters div { display: flex; flex-direction: column; }
+    .actions button { padding: 4px 10px; margin-right: 4px; cursor: pointer; }
+    .status-cell input, .remark-cell input { width: 100%; box-sizing: border-box; }
+  </style>
 </head>
 <body>
+  <h1>VEWORK 2025 Order Dashboard</h1>
 
-<h1>💻 Vasansi Jaipur Order Dashboard</h1>
+  <div class="filters">
+    <div>
+      <strong>Status</strong>
+      <label><input type="checkbox" name="statusFilter" value=""> No Status</label>
+      <label><input type="checkbox" name="statusFilter" value="Order Received"> Order Received</label>
+      <label><input type="checkbox" name="statusFilter" value="For Work"> For Work</label>
+      <label><input type="checkbox" name="statusFilter" value="Finishing"> Finishing</label>
+      <label><input type="checkbox" name="statusFilter" value="Dispatch"> Dispatch</label>
+    </div>
 
-<!-- Filters -->
-<div class="controls">
-  <label>Order No: <input type="text" id="filterOrderNo" placeholder="Enter order no..."></label>
-  <label>Order Date: <input type="date" id="filterOrderStart"> to <input type="date" id="filterOrderEnd"></label>
-  <label>Delivery Date: <input type="date" id="filterDeliveryStart"> to <input type="date" id="filterDeliveryEnd"></label>
-  <label>Unit: <select id="filterUnit"></select></label>
-<label>Sheet Name: <select id="filterSheet"></select></label>
+    <div>
+      <strong>Branch</strong>
+      <label><input type="checkbox" name="branchFilter" value="Branch Sales Order"> Branch</label>
+      <label><input type="checkbox" name="branchFilter" value="Jaipur Sales Order"> Jaipur</label>
+      <label><input type="checkbox" name="branchFilter" value="Jaipur Alterations"> Alterations</label>
+      <label><input type="checkbox" name="branchFilter" value="Exhibition Sales Order"> Exhibition</label>
+      <label><input type="checkbox" name="branchFilter" value="Wholesale Order"> Wholesale</label>
+    </div>
 
-</div>
+    <div>
+      <strong>Date Range</strong>
+      <input type="date" id="startDate">
+      <input type="date" id="endDate">
+    </div>
 
-<!-- Multi-status Filter -->
-<div class="controls">
-  <label><strong>Status:</strong></label>
-  <div class="status-checkboxes" id="statusCheckboxes"></div>
-  <button onclick="applyFilters()">Apply</button>
-  <button onclick="resetFilters()">Reset</button>
-</div>
+    <div>
+      <button onclick="applyFilters()">Apply Filters</button>
+      <button onclick="loadData()">Reload All</button>
+    </div>
+  </div>
 
-<!-- Search + Show Entries -->
-<div class="controls" style="justify-content: space-between; align-items: center;">
-  <input type="text" id="searchBar" placeholder="🔍 Search..." oninput="searchTable()">
-  <label>Show 
-    <select id="entriesSelect" onchange="changeEntries()">
-      <option value="10">10</option>
-      <option value="25" selected>25</option>
-      <option value="50">50</option>
-      <option value="100">100</option>
-    </select> entries
-  </label>
-</div>
+  <table id="ordersTable">
+    <thead>
+      <tr>
+        <th>Order No</th>
+        <th>Order Date</th>
+        <th>Delivery Date</th>
+        <th>Customer</th>
+        <th>Branch</th>
+        <th>Status</th>
+        <th>Remark</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
 
-<table id="dataTable"></table>
-<div class="pagination" id="pagination"></div>
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMu_iWnaHDBFyXjmVjjFahRpxiwo81BxvRx5fNQPOFK65XjOqtaFXinWFLqR4gluJE_Q/exec";
+    let allOrdersData = [];
 
-<script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx2UwhSb04IZu-wbPV738ixptjJDmhBvFlEKUOUii8OSbhtlpoKjS9gp9UVy7TLo7Hs/exec";  // Replace this
-const FIXED_SHEETS = [
-  "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
-  "Exhibition Sales Order", "Wholesale Order"
-];
-const INCLUDED_COLUMNS = [
-  "Timestamp","Sheet Name","Order No",
-  "Order Date","Delivery Date","Item","Design No","Unit",
-  "Product Image","Order Form Photo","Remark","Status","Jobber Name"
-];
+    async function loadData() {
+      document.getElementById("tableBody").innerHTML = "<tr><td colspan='8'>Loading...</td></tr>";
+      try {
+        const res = await fetch(SCRIPT_URL);
+        const json = await res.json();
+        const arr = [];
+        Object.keys(json).forEach(sheet => {
+          const vals = json[sheet];
+          const headers = vals[0];
+          for (let i = 1; i < vals.length; i++) {
+            const r = vals[i];
+            arr.push({
+              timestamp: r[1],
+              orderNo: r[4],
+              orderDate: r[5],
+              deliveryDate: r[9],
+              customerName: r[6],
+              branch: sheet,
+              status: r[22] || "",
+              remark: r[15] || ""
+            });
+          }
+        });
+        allOrdersData = arr;
+        applyFilters();
+      } catch (err) {
+        console.error("❌ loadData:", err);
+        document.getElementById("tableBody").innerHTML = "<tr><td colspan='8'>Failed to load data</td></tr>";
+      }
+    }
 
-let headers=[], rows=[], filteredRows=[], currentSort={index:null,dir:-1};
-let currentPage=1, rowsPerPage=25;
+    function applyFilters() {
+      const selectedStatuses = Array.from(document.querySelectorAll('input[name="statusFilter"]:checked')).map(cb => cb.value.trim());
+      const selectedBranches = Array.from(document.querySelectorAll('input[name="branchFilter"]:checked')).map(cb => cb.value.trim());
+      const startDate = document.getElementById("startDate")?.value || "";
+      const endDate = document.getElementById("endDate")?.value || "";
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
 
-const safeLower = v => (v==null?"":String(v).toLowerCase());
-const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
+      let filtered = allOrdersData.filter(r => {
+        const statusValue = (r.status || "").trim();
+        const branchValue = (r.branch || "").trim();
 
-function formatDateTime(val) {
-  if (!val) return "";
-  const d = new Date(val);
-  return isNaN(d)
-    ? val
-    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
+        if (selectedStatuses.length) {
+          if (!selectedStatuses.includes(statusValue) &&
+              !(statusValue === "" && selectedStatuses.includes(""))) return false;
+        }
+        if (selectedBranches.length && !selectedBranches.includes(branchValue)) return false;
 
-
-function toThumb(url){
-  if(!url||typeof url!=="string")return"";
-  const idMatch=url.match(/[-\w]{25,}/);
-  const id=idMatch?idMatch[0]:null;
-  return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:"";
-}
-
-async function loadData(){
-  document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
-  try{
-    const res=await fetch(SCRIPT_URL);
-    const data=await res.json();
-    const combined=combineSheetsObject(data);
-    headers=combined[0].map(h=>h||"");
-    rows=clean(combined.slice(1));
-    rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
-    filteredRows=rows;
-    populateFilters();
-    renderTable();
-  }catch(e){document.getElementById("dataTable").innerHTML=`<tr><td>❌ ${e.message}</td></tr>`;}
-}
-
-function combineSheetsObject(obj){
-  const out=[INCLUDED_COLUMNS];
-  FIXED_SHEETS.forEach(sheet=>{
-    const sheetData=obj[sheet];
-    if(!Array.isArray(sheetData)||sheetData.length<2)return;
-    const headers=sheetData[0];
-    sheetData.slice(1).forEach(r=>{
-      if(!Array.isArray(r))return;
-      const mapped=INCLUDED_COLUMNS.map(h=>{
-        const idx=headers.indexOf(h);
-        return idx===-1?"":r[idx]||"";
+        if (start || end) {
+          const od = r.orderDate ? new Date(r.orderDate) : null;
+          if (od) {
+            if (start && od < start) return false;
+            if (end && od > end) return false;
+          }
+        }
+        return true;
       });
-      const tsIdx=headers.indexOf("Timestamp");
-      mapped[0]=tsIdx>=0?r[tsIdx]:"";
-      mapped[1]=sheet;
-      out.push(mapped);
-    });
-  });
-  return out;
-}
 
-function populateFilters() {
-  const units = new Set();
-  const sheetNames = new Set();
-  const statuses = [
-    "Order Received","Dye","Print Process","Print Received","For Work",
-    "From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
-    "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"
-  ];
-
-  const uIdx = headers.indexOf("Unit");
-  const sIdx = headers.indexOf("Sheet Name");
-
-  rows.forEach(r => {
-    if (r[uIdx]) units.add(r[uIdx]);
-    if (r[sIdx]) sheetNames.add(r[sIdx]);
-  });
-
-  document.getElementById("filterUnit").innerHTML =
-    `<option value="">All</option>` + [...units].map(u => `<option>${u}</option>`).join("");
-
-  document.getElementById("filterSheet").innerHTML =
-    `<option value="">All</option>` + [...sheetNames].map(n => `<option>${n}</option>`).join("");
-
-  document.getElementById("statusCheckboxes").innerHTML =
-    statuses.map(s => `<label><input type="checkbox" value="${s}"> ${s}</label>`).join("");
-}
-
-
-function applyFilters(){
-  const orderNo=safeLower(document.getElementById("filterOrderNo").value);
-  const oStart=document.getElementById("filterOrderStart").value,oEnd=document.getElementById("filterOrderEnd").value;
-  const dStart=document.getElementById("filterDeliveryStart").value,dEnd=document.getElementById("filterDeliveryEnd").value;
-  const unit=document.getElementById("filterUnit").value;
-  const sheetName = document.getElementById("filterSheet").value;
-  const selStatuses=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
-  const iO=headers.indexOf("Order No"),iOD=headers.indexOf("Order Date"),iDD=headers.indexOf("Delivery Date"),iU=headers.indexOf("Unit"),iS=headers.indexOf("Status");
-  filteredRows=rows.filter(r=>{
-    const od=new Date(r[iOD]||""),dd=new Date(r[iDD]||"");
-    return(!orderNo||safeLower(r[iO]).includes(orderNo))&&(!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
-(!unit||r[iU]===unit)&&(!selStatuses.length||selStatuses.includes(r[iS]))&&(!oStart||od>=new Date(oStart))&&(!oEnd||od<=new Date(oEnd+"T23:59:59"))&&(!dStart||dd>=new Date(dStart))&&(!dEnd||dd<=new Date(dEnd+"T23:59:59"));
-  });
-  currentPage=1;renderTable();
-}
-
-function resetFilters(){
-  document.querySelectorAll("input,select").forEach(e=>e.value="");
-  document.querySelectorAll(".status-checkboxes input").forEach(i=>i.checked=false);
-  filteredRows=rows;currentPage=1;renderTable();
-}
-
-function renderTable(){
-  const tbl=document.getElementById("dataTable");
-  if(!filteredRows.length){tbl.innerHTML="<tr><td>No data found</td></tr>";document.getElementById("pagination").innerHTML="";return;}
-  const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage,page=filteredRows.slice(start,end);
-  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
-
-  page.forEach(r=>{
-    html+="<tr>";
-    headers.forEach((h,i)=>{
-      let hClean = h.trim();
-      let tdClass = hClean === 'Order No' ? ' class="order-no"' : '';
-      let val=r[i]||"",hLow=safeLower(h);
-      if(hLow.includes("timestamp"))val=formatDateTime(val);
-      else if(hLow.includes("date"))val=formatDateTime(val);
-      else if((hLow.includes("image")||hLow.includes("photo"))&&val.includes("drive.google.com")){
-        const t=toThumb(val);
-        val=t?`<a href="${val}" target="_blank"><img src="${t}"></a>`:val;
-      }else if(h==="Status"){
-        const sheetStatus=safeLower(r[i]);
-        const allStatuses=["Order Received","Dye","Print Process","Print Received","For Work",
-    "From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
-    "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
-        val="<select>"+allStatuses.map(s=>{
-          const sel=safeLower(s)===sheetStatus?"selected":"";
-          return `<option ${sel}>${s}</option>`;
-        }).join("")+"</select>";
-      }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
-      html+=`<td>${val}</td>`;
-    });
-    html+=`
-  <td>
-    <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
-  </td>
-</tr>`;
-
-  });
-
-  tbl.innerHTML=html+"</tbody>";
-  renderPagination();
-}
-
-function renderPagination(){
-  const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
-  const pg=document.getElementById("pagination");
-  if(totalPages<=1){pg.innerHTML="";return;}
-  let html=`<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Previous</button>`;
-  const startPage=Math.max(1,currentPage-2);
-  const endPage=Math.min(totalPages,startPage+4);
-  for(let i=startPage;i<=endPage;i++){
-    html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
-  }
-  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
-  pg.innerHTML=html;
-}
-
-function gotoPage(p){currentPage=p;renderTable();}
-function gotoPrev(){if(currentPage>1){currentPage--;renderTable();}}
-function gotoNext(total){if(currentPage<total){currentPage++;renderTable();}}
-function changeEntries(){rowsPerPage=parseInt(document.getElementById("entriesSelect").value);currentPage=1;renderTable();}
-
-function searchTable(){
-  const term=safeLower(document.getElementById("searchBar").value);
-  filteredRows=rows.filter(r=>r.some(c=>safeLower(c).includes(term)));
-  currentPage=1;renderTable();
-}
-
-async function saveRow(btn,sheet){
-  const tr=btn.closest("tr"),tds=[...tr.children];
-  const orderCell = tr.querySelector("td.order-no");
-  let orderNo = orderCell ? orderCell.innerText.trim() : "";
-  if (!orderNo) {
-    const iO = headers.findIndex(h =>
-  h.replace(/\./g, "").trim().toLowerCase().includes("order no"));
-    if (iO >= 0) {
-      orderNo = tds[iO]?.innerText?.trim() || "";
+      filtered.sort((a,b)=> new Date(b.timestamp||0) - new Date(a.timestamp||0));
+      renderOrders(filtered);
     }
-  }
-  console.log("🧾 Extracted Order No:", orderNo);
-  const sel=tr.querySelector("select"),rem=tr.querySelector(".remark-cell");
-  const status=sel?sel.value:"",remark=rem?rem.innerText.trim():"";
-  if(!orderNo)return alert("❌ Missing Order No");
-  try{
-    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
-    const j=await res.json();
-    if(j.success)alert("✅ Updated successfully");else throw new Error(j.error||"Failed");
-  }catch(e){alert("❌ "+e.message);}
-}
 
-loadData();
-async function generateOrderPrint(sheetName, orderNo) {
-  if (!confirm("Generate Order Print for " + orderNo + "?")) return;
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "print", sheetName, orderNo })
-    });
-    const j = await res.json();
-    if (j.success && j.pdf) {
-      const pdfWindow = window.open("");
-      pdfWindow.document.write(
-        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`
-      );
-    } else if (j.success && j.url) {
-      window.open(j.url, "_blank");
-    } else {
-      alert("❌ " + (j.error || "Failed to generate print"));
+    function renderOrders(rows) {
+      const tbody = document.getElementById("tableBody");
+      if (!rows.length) {
+        tbody.innerHTML = "<tr><td colspan='8'>No orders found</td></tr>";
+        return;
+      }
+      const today = new Date();
+      tbody.innerHTML = rows.map(r => {
+        let cls = "nodate";
+        if (r.deliveryDate) {
+          const dd = new Date(r.deliveryDate);
+          dd.setHours(0,0,0,0); today.setHours(0,0,0,0);
+          if (dd < today) cls = "overdue";
+          else if (dd.getTime() === today.getTime()) cls = "today";
+          else cls = "future";
+        }
+        return `
+          <tr class="${cls}">
+            <td>${r.orderNo || ""}</td>
+            <td>${r.orderDate || ""}</td>
+            <td>${r.deliveryDate || ""}</td>
+            <td>${r.customerName || ""}</td>
+            <td>${r.branch || ""}</td>
+            <td class="status-cell"><input value="${r.status || ""}" data-order="${r.orderNo}" data-branch="${r.branch}"></td>
+            <td class="remark-cell"><input value="${r.remark || ""}" data-order="${r.orderNo}" data-branch="${r.branch}"></td>
+            <td class="actions">
+              <button onclick="saveRow('${r.branch}','${r.orderNo}')">Save</button>
+              <button onclick="printRow('${r.branch}','${r.orderNo}')">Print</button>
+            </td>
+          </tr>`;
+      }).join("");
     }
-  } catch (e) {
-    alert("❌ " + e.message);
-  }
-}
-</script>
+
+    async function saveRow(sheetName, orderNo) {
+      const row = document.querySelector(`input[data-order="${orderNo}"][data-branch="${sheetName}"]`);
+      const status = row.closest("tr").querySelector(".status-cell input").value;
+      const remark = row.closest("tr").querySelector(".remark-cell input").value;
+      const payload = { sheetName, orderNo, status, remark, action: "save" };
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) alert("✅ Saved!");
+        else alert("❌ " + json.error);
+      } catch (err) {
+        console.error("❌ Save error:", err);
+        alert("❌ Failed to fetch (save)");
+      }
+    }
+
+    async function printRow(sheetName, orderNo) {
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sheetName, orderNo, action: "print" })
+        });
+        const json = await res.json();
+        if (json.success && json.pdf) {
+          const blob = base64ToBlob(json.pdf, "application/pdf");
+          const url = URL.createObjectURL(blob);
+          window.open(url, "_blank");
+        } else {
+          alert("❌ " + (json.error || "Print failed"));
+        }
+      } catch (err) {
+        console.error("❌ Print error:", err);
+        alert("❌ Failed to fetch (print)");
+      }
+    }
+
+    function base64ToBlob(b64, type) {
+      const byteChars = atob(b64);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      return new Blob([new Uint8Array(byteNums)], { type });
+    }
+
+    loadData();
+  </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
