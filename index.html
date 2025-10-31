@@ -136,8 +136,9 @@ async function loadData(){
   try{
     const res = await fetch(SCRIPT_URL);
 const text = await res.text();
-console.log("Raw data:", text);
+console.log("🔍 Raw Response:", text);
 const data = JSON.parse(text);
+
     headers=combined[0].map(h=>h||"");
     rows=clean(combined.slice(1));
     rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
@@ -346,6 +347,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
