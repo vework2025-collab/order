@@ -6,28 +6,49 @@
 <style>
   body { font-family: "Segoe UI", sans-serif; background: #f7f8fa; padding: 20px; }
   h1 { text-align: center; margin-bottom: 15px; }
+
   table { width: 100%; border-collapse: collapse; background: white; }
-  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 13px; white-space: nowrap; }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: left;
+    font-size: 13px;
+    white-space: nowrap;
+  }
   th { background: #f2f2f2; position: sticky; top: 0; z-index: 2; cursor: pointer; }
   th.sort-asc::after { content: " ▲"; }
   th.sort-desc::after { content: " ▼"; }
+
   img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
+
   .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 15px; }
   select, input, button { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
   button { background: #007bff; color: white; cursor: pointer; border: none; }
   button:hover { background: #0056b3; }
+
   .save-btn { background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; }
   .remark-cell { white-space: normal; max-width: 400px; min-width: 150px; }
+
   .pagination { text-align: center; margin-top: 10px; }
-  .pagination button { margin: 0 2px; padding: 5px 10px; border: 1px solid #007bff; border-radius: 4px; background: white; color: #007bff; }
+  .pagination button {
+    margin: 0 2px;
+    padding: 5px 10px;
+    border: 1px solid #007bff;
+    border-radius: 4px;
+    background: white;
+    color: #007bff;
+  }
   .pagination button.active { background: #007bff; color: white; }
   .pagination button[disabled] { opacity: 0.4; cursor: not-allowed; }
+
   #entriesSelect { border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; margin: 0 4px; }
+
   .status-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 1010px; margin: 0 auto; }
   .status-checkboxes label { font-size: 15px; display: flex; align-items: center; gap: 4px; }
 </style>
 </head>
 <body>
+
 <h1>💻 Vasansi Jaipur Order Dashboard</h1>
 
 <div class="controls">
@@ -61,7 +82,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyaBl2sfg2Z4a5xTR62eDH32F9W824K7enE1oEaQ4Fu7VthCH-JWwQ_6dLS32vPO1la/exec"; // replace after re-deploy
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyaBl2sfg2Z4a5xTR62eDH32F9W824K7enE1oEaQ4Fu7VthCH-JWwQ_6dLS32vPO1la/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -74,8 +95,8 @@ const INCLUDED_COLUMNS = [
 
 let headers=[], rows=[], filteredRows=[], currentPage=1, rowsPerPage=25;
 
-const safeLower=v=>(v==null?"":String(v).toLowerCase());
-const clean=arr=>Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
+const safeLower = v => (v==null?"":String(v).toLowerCase());
+const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
 
 function formatDateTime(v){
   if(!v)return""; const d=new Date(v);
@@ -86,16 +107,18 @@ function toThumb(url){
 }
 
 async function loadData(){
-  document.getElementById("dataTable").innerHTML="<tr><td>Loading...</td></tr>";
+  document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
   try{
     const res=await fetch(SCRIPT_URL);
     const text=await res.text();
-    console.log("🔍 Raw Response:", text.slice(0,300));
+    console.log("🔍 Raw Response:", text.slice(0,200));
     const data=JSON.parse(text);
     const combined=combineSheetsObject(data);
     headers=combined[0]; rows=clean(combined.slice(1));
     rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
-    filteredRows=rows; populateFilters(); renderTable();
+    filteredRows=rows;
+    populateFilters();
+    renderTable();
   }catch(e){
     document.getElementById("dataTable").innerHTML=`<tr><td>❌ ${e.message}</td></tr>`;
   }
@@ -123,7 +146,10 @@ function combineSheetsObject(obj){
 
 function populateFilters(){
   const units=new Set(), sheets=new Set();
-  const statuses=["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
+  const statuses=["","Order Received","Dye","Print Process","Print Received","For Work",
+  "From Work Received","Send To Party","Received From Party","Stitching","Finishing",
+  "Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
+  "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
   const u=headers.indexOf("Unit"), s=headers.indexOf("Sheet Name");
   rows.forEach(r=>{if(r[u])units.add(r[u]); if(r[s])sheets.add(r[s]);});
   document.getElementById("filterUnit").innerHTML=`<option value="">All</option>${[...units].map(u=>`<option>${u}</option>`).join("")}`;
@@ -131,110 +157,132 @@ function populateFilters(){
   document.getElementById("statusCheckboxes").innerHTML=statuses.map(s=>`<label><input type="checkbox" value="${s}">${s||"(blank)"}</label>`).join("");
 }
 
-function applyFilters() {
-  const oNo = safeLower(document.getElementById("filterOrderNo").value);
-  const oS = document.getElementById("filterOrderStart").value;
-  const oE = document.getElementById("filterOrderEnd").value;
-  const dS = document.getElementById("filterDeliveryStart").value;
-  const dE = document.getElementById("filterDeliveryEnd").value;
-  const unit = document.getElementById("filterUnit").value;
-  const sheet = document.getElementById("filterSheet").value;
-  const sel = [...document.querySelectorAll(".status-checkboxes input:checked")].map(i => i.value);
+function applyFilters(){
+  const oNo=safeLower(document.getElementById("filterOrderNo").value);
+  const oS=document.getElementById("filterOrderStart").value;
+  const oE=document.getElementById("filterOrderEnd").value;
+  const dS=document.getElementById("filterDeliveryStart").value;
+  const dE=document.getElementById("filterDeliveryEnd").value;
+  const unit=document.getElementById("filterUnit").value;
+  const sheet=document.getElementById("filterSheet").value;
+  const sel=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
+  const iO=headers.indexOf("Order No"), iOD=headers.indexOf("Order Date"), iDD=headers.indexOf("Delivery Date"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Status");
 
-  const iO = headers.indexOf("Order No");
-  const iOD = headers.indexOf("Order Date");
-  const iDD = headers.indexOf("Delivery Date");
-  const iU = headers.indexOf("Unit");
-  const iS = headers.indexOf("Status");
+  filteredRows=rows.filter(r=>{
+    const od=new Date(r[iOD]||"");
+    const dd=new Date(r[iDD]||"");
+    const statusVal=r[iS]?String(r[iS]).trim():"";
+    const matchStatus=!sel.length?true:sel.includes(statusVal);
 
-  filteredRows = rows.filter(r => {
-    const od = new Date(r[iOD] || "");
-    const dd = new Date(r[iDD] || "");
-    const statusVal = r[iS] ? String(r[iS]).trim() : "";
-    const matchStatus = !sel.length ? true : sel.includes(statusVal);
-
-    return (
-      (!oNo || safeLower(r[iO]).includes(oNo)) &&
-      (!sheet || r[1] === sheet) &&
-      (!unit || r[iU] === unit) &&
-      matchStatus &&
-      (!oS || od >= new Date(oS)) &&
-      (!oE || od <= new Date(oE + "T23:59:59")) &&
-      (!dS || dd >= new Date(dS)) &&
-      (!dE || dd <= new Date(dE + "T23:59:59"))
-    );
+    return(!oNo||safeLower(r[iO]).includes(oNo))
+      &&(!sheet||r[1]===sheet)
+      &&(!unit||r[iU]===unit)
+      &&matchStatus
+      &&(!oS||od>=new Date(oS))
+      &&(!oE||od<=new Date(oE+"T23:59:59"))
+      &&(!dS||dd>=new Date(dS))
+      &&(!dE||dd<=new Date(dE+"T23:59:59"));
   });
-
-  currentPage = 1;
-  renderTable(); // full re-render including pagination
+  currentPage=1;
+  renderTable();
 }
 
+function resetFilters(){
+  document.querySelectorAll("input,select").forEach(e=>e.value="");
+  document.querySelectorAll(".status-checkboxes input").forEach(i=>i.checked=false);
+  filteredRows=rows;
+  currentPage=1;
+  renderTable();
+}
 
-function renderTable() {
-  const tbl = document.getElementById("dataTable");
-  if (!filteredRows.length) {
-    tbl.innerHTML = "<tr><td>No data found</td></tr>";
-    document.getElementById("pagination").innerHTML = "";
-    return;
-  }
+function renderTable(){
+  const tbl=document.getElementById("dataTable");
+  if(!filteredRows.length){tbl.innerHTML="<tr><td>No data found</td></tr>";document.getElementById("pagination").innerHTML="";return;}
 
-  const start = (currentPage - 1) * rowsPerPage;
-  const end = start + rowsPerPage;
-  const page = filteredRows.slice(start, end);
+  const start=(currentPage-1)*rowsPerPage;
+  const end=start+rowsPerPage;
+  const page=filteredRows.slice(start,end);
 
-  let html =
-    "<thead><tr>" +
-    headers.map(h => `<th>${h}</th>`).join("") +
-    "<th>Actions</th></tr></thead><tbody>";
-
-  page.forEach(r => {
-    html += "<tr>";
-    headers.forEach((h, i) => {
-      let val = r[i] || "";
-      const low = safeLower(h);
-
-      if (low.includes("timestamp") || low.includes("date")) val = formatDateTime(val);
-      else if ((low.includes("image") || low.includes("photo")) && val.includes("drive.google.com")) {
-        const t = toThumb(val);
-        val = t ? `<a href="${val}" target="_blank"><img src="${t}"></a>` : val;
-      } else if (h === "Status") {
-        const all = [
-          "",
-          "Order Received", "Dye", "Print Process", "Print Received", "For Work",
-          "From Work Received", "Send To Party", "Received From Party", "Stitching", "Finishing",
-          "Dispatch To Warehouse", "Received At Warehouse", "Send To D69", "Received At D69",
-          "Ready For Delivery", "Billed", "Tracking Updated", "Hand Delivery", "Delivered", "Cancelled"
-        ];
-        val =
-          "<select>" +
-          all
-            .map(s => `<option ${s === r[i] ? "selected" : ""}>${s || "(blank)"}</option>`)
-            .join("") +
-          "</select>";
-      } else if (h === "Remark") val = `<div class='remark-cell'>${val}</div>`;
-
-      html += `<td>${val}</td>`;
+  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
+  page.forEach(r=>{
+    html+="<tr>";
+    headers.forEach((h,i)=>{
+      let val=r[i]||"",low=safeLower(h);
+      if(low.includes("timestamp")||low.includes("date"))val=formatDateTime(val);
+      else if((low.includes("image")||low.includes("photo"))&&val.includes("drive.google.com")){
+        const t=toThumb(val);
+        val=t?`<a href='${val}' target='_blank'><img src='${t}'></a>`:val;
+      }else if(h==="Status"){
+        const all=["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
+        val="<select>"+all.map(s=>`<option ${s===r[i]?"selected":""}>${s||"(blank)"}</option>`).join("")+"</select>";
+      }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
+      html+=`<td>${val}</td>`;
     });
-
-    html += `
-      <td>
-        <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-        <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
-      </td>
-    </tr>`;
+    html+=`<td><button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
+    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button></td></tr>`;
   });
-
-  html += "</tbody>";
-  tbl.innerHTML = html;
-
-  renderPagination(); // ✅ rebuilds bottom pagination each time
+  html+="</tbody>";
+  tbl.innerHTML=html;
+  renderPagination();
 }
+
+function renderPagination(){
+  const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
+  const pg=document.getElementById("pagination");
+  if(totalPages<=1){pg.innerHTML="";return;}
+  let html=`<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Previous</button>`;
+  const startPage=Math.max(1,currentPage-2);
+  const endPage=Math.min(totalPages,startPage+4);
+  for(let i=startPage;i<=endPage;i++){
+    html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
+  }
+  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
+  pg.innerHTML=html;
+}
+
+function gotoPage(p){currentPage=p;renderTable();}
+function gotoPrev(){if(currentPage>1){currentPage--;renderTable();}}
+function gotoNext(total){if(currentPage<total){currentPage++;renderTable();}}
+function changeEntries(){rowsPerPage=parseInt(document.getElementById("entriesSelect").value);currentPage=1;renderTable();}
+
+function searchTable(){
+  const term=safeLower(document.getElementById("searchBar").value);
+  filteredRows=rows.filter(r=>r.some(c=>safeLower(c).includes(term)));
+  currentPage=1;renderTable();
+}
+
+async function saveRow(btn,sheet){
+  const tr=btn.closest("tr");
+  const tds=[...tr.children];
+  const orderCell=tr.querySelector("td.order-no");
+  let orderNo=orderCell?orderCell.innerText.trim():"";
+  if(!orderNo){
+    const iO=headers.findIndex(h=>h.replace(/\./g,"").trim().toLowerCase().includes("order no"));
+    if(iO>=0){orderNo=tds[iO]?.innerText?.trim()||"";}
+  }
+  const sel=tr.querySelector("select"),rem=tr.querySelector(".remark-cell");
+  const status=sel?sel.value:"",remark=rem?rem.innerText.trim():"";
+  if(!orderNo)return alert("❌ Missing Order No");
+  try{
+    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
+    const j=await res.json();
+    if(j.success)alert("✅ Updated successfully");else throw new Error(j.error||"Failed");
+  }catch(e){alert("❌ "+e.message);}
+}
+
+async function generateOrderPrint(sheetName,orderNo){
+  if(!confirm("Generate Order Print for "+orderNo+"?"))return;
+  try{
+    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"print",sheetName,orderNo})});
+    const j=await res.json();
+    if(j.success&&j.pdf){
+      const pdfWindow=window.open("");
+      pdfWindow.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`);
+    }else alert("❌ "+(j.error||"Failed to generate print"));
+  }catch(e){alert("❌ "+e.message);}
+}
+
 loadData();
 </script>
 </body>
 </html>
-
-
-
-
-
