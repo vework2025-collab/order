@@ -131,66 +131,109 @@ function populateFilters(){
   document.getElementById("statusCheckboxes").innerHTML=statuses.map(s=>`<label><input type="checkbox" value="${s}">${s||"(blank)"}</label>`).join("");
 }
 
-function applyFilters(){
-  const oNo=safeLower(document.getElementById("filterOrderNo").value),
-        oS=document.getElementById("filterOrderStart").value, oE=document.getElementById("filterOrderEnd").value,
-        dS=document.getElementById("filterDeliveryStart").value, dE=document.getElementById("filterDeliveryEnd").value,
-        unit=document.getElementById("filterUnit").value,
-        sheet=document.getElementById("filterSheet").value,
-        sel=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value),
-        iO=headers.indexOf("Order No"), iOD=headers.indexOf("Order Date"), iDD=headers.indexOf("Delivery Date"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Status");
+function applyFilters() {
+  const oNo = safeLower(document.getElementById("filterOrderNo").value);
+  const oS = document.getElementById("filterOrderStart").value;
+  const oE = document.getElementById("filterOrderEnd").value;
+  const dS = document.getElementById("filterDeliveryStart").value;
+  const dE = document.getElementById("filterDeliveryEnd").value;
+  const unit = document.getElementById("filterUnit").value;
+  const sheet = document.getElementById("filterSheet").value;
+  const sel = [...document.querySelectorAll(".status-checkboxes input:checked")].map(i => i.value);
+
+  const iO = headers.indexOf("Order No");
+  const iOD = headers.indexOf("Order Date");
+  const iDD = headers.indexOf("Delivery Date");
+  const iU = headers.indexOf("Unit");
+  const iS = headers.indexOf("Status");
+
   filteredRows = rows.filter(r => {
-  const od = new Date(r[iOD] || "");
-  const dd = new Date(r[iDD] || "");
-  const statusVal = r[iS] ? String(r[iS]).trim() : "";
-  const matchStatus = !sel.length ? true : sel.includes(statusVal);
+    const od = new Date(r[iOD] || "");
+    const dd = new Date(r[iDD] || "");
+    const statusVal = r[iS] ? String(r[iS]).trim() : "";
+    const matchStatus = !sel.length ? true : sel.includes(statusVal);
 
-  return (!oNo || safeLower(r[iO]).includes(oNo))
-      && (!sheet || r[1] === sheet)
-      && (!unit || r[iU] === unit)
-      && matchStatus
-      && (!oS || od >= new Date(oS))
-      && (!oE || od <= new Date(oE + "T23:59:59"))
-      && (!dS || dd >= new Date(dS))
-      && (!dE || dd <= new Date(dE + "T23:59:59"));
-});
-
-  currentPage=1; renderTable();
-}
-
-function resetFilters(){
-  document.querySelectorAll("input,select").forEach(e=>e.value="");
-  document.querySelectorAll(".status-checkboxes input").forEach(i=>i.checked=false);
-  filteredRows=rows; currentPage=1; renderTable();
-}
-
-function renderTable(){
-  const tbl=document.getElementById("dataTable");
-  if(!filteredRows.length){tbl.innerHTML="<tr><td>No data found</td></tr>"; return;}
-  const start=(currentPage-1)*rowsPerPage, end=start+rowsPerPage, page=filteredRows.slice(start,end);
-  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
-  page.forEach(r=>{
-    html+="<tr>";
-    headers.forEach((h,i)=>{
-      let val=r[i]||""; const low=safeLower(h);
-      if(low.includes("timestamp")||low.includes("date"))val=formatDateTime(val);
-      else if((low.includes("image")||low.includes("photo"))&&val.includes("drive.google.com")){
-        const t=toThumb(val); val=t?`<a href='${val}' target='_blank'><img src='${t}'></a>`:val;
-      } else if(h==="Status"){
-        const all=["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
-        val="<select>"+all.map(s=>`<option ${s===r[i]?"selected":""}>${s||"(blank)"}</option>`).join("")+"</select>";
-      } else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
-      html+=`<td>${val}</td>`;
-    });
-    html+=`<td><button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button></td></tr>`;
+    return (
+      (!oNo || safeLower(r[iO]).includes(oNo)) &&
+      (!sheet || r[1] === sheet) &&
+      (!unit || r[iU] === unit) &&
+      matchStatus &&
+      (!oS || od >= new Date(oS)) &&
+      (!oE || od <= new Date(oE + "T23:59:59")) &&
+      (!dS || dd >= new Date(dS)) &&
+      (!dE || dd <= new Date(dE + "T23:59:59"))
+    );
   });
-  tbl.innerHTML=html+"</tbody>";
+
+  currentPage = 1;
+  renderTable(); // full re-render including pagination
+}
+
+
+function renderTable() {
+  const tbl = document.getElementById("dataTable");
+  if (!filteredRows.length) {
+    tbl.innerHTML = "<tr><td>No data found</td></tr>";
+    document.getElementById("pagination").innerHTML = "";
+    return;
+  }
+
+  const start = (currentPage - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+  const page = filteredRows.slice(start, end);
+
+  let html =
+    "<thead><tr>" +
+    headers.map(h => `<th>${h}</th>`).join("") +
+    "<th>Actions</th></tr></thead><tbody>";
+
+  page.forEach(r => {
+    html += "<tr>";
+    headers.forEach((h, i) => {
+      let val = r[i] || "";
+      const low = safeLower(h);
+
+      if (low.includes("timestamp") || low.includes("date")) val = formatDateTime(val);
+      else if ((low.includes("image") || low.includes("photo")) && val.includes("drive.google.com")) {
+        const t = toThumb(val);
+        val = t ? `<a href="${val}" target="_blank"><img src="${t}"></a>` : val;
+      } else if (h === "Status") {
+        const all = [
+          "",
+          "Order Received", "Dye", "Print Process", "Print Received", "For Work",
+          "From Work Received", "Send To Party", "Received From Party", "Stitching", "Finishing",
+          "Dispatch To Warehouse", "Received At Warehouse", "Send To D69", "Received At D69",
+          "Ready For Delivery", "Billed", "Tracking Updated", "Hand Delivery", "Delivered", "Cancelled"
+        ];
+        val =
+          "<select>" +
+          all
+            .map(s => `<option ${s === r[i] ? "selected" : ""}>${s || "(blank)"}</option>`)
+            .join("") +
+          "</select>";
+      } else if (h === "Remark") val = `<div class='remark-cell'>${val}</div>`;
+
+      html += `<td>${val}</td>`;
+    });
+
+    html += `
+      <td>
+        <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
+        <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
+      </td>
+    </tr>`;
+  });
+
+  html += "</tbody>";
+  tbl.innerHTML = html;
+
+  renderPagination(); // ✅ rebuilds bottom pagination each time
 }
 loadData();
 </script>
 </body>
 </html>
+
 
 
 
