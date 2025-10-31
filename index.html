@@ -206,7 +206,12 @@ function applyFilters(){
   filteredRows=rows.filter(r=>{
     const od=new Date(r[iOD]||""),dd=new Date(r[iDD]||"");
     return(!orderNo||safeLower(r[iO]).includes(orderNo))&&(!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
-(!unit||r[iU]===unit)&&(!selStatuses.length||selStatuses.includes(r[iS]))&&(!oStart||od>=new Date(oStart))&&(!oEnd||od<=new Date(oEnd+"T23:59:59"))&&(!dStart||dd>=new Date(dStart))&&(!dEnd||dd<=new Date(dEnd+"T23:59:59"));
+(!unit||r[iU]===unit)&&(
+  !selStatuses.length ||            // no filter = show all
+  selStatuses.includes(r[iS]) ||    // match selected statuses
+  (r[iS] === "" || r[iS] == null)   // also include blank statuses
+)
+&&(!oStart||od>=new Date(oStart))&&(!oEnd||od<=new Date(oEnd+"T23:59:59"))&&(!dStart||dd>=new Date(dStart))&&(!dEnd||dd<=new Date(dEnd+"T23:59:59"));
   });
   currentPage=1;renderTable();
 }
@@ -340,3 +345,4 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
