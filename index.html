@@ -139,17 +139,22 @@ function applyFilters(){
         sheet=document.getElementById("filterSheet").value,
         sel=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value),
         iO=headers.indexOf("Order No"), iOD=headers.indexOf("Order Date"), iDD=headers.indexOf("Delivery Date"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Status");
-  filteredRows=rows.filter(r=>{
-    const od=new Date(r[iOD]||""), dd=new Date(r[iDD]||"");
-    return (!oNo||safeLower(r[iO]).includes(oNo))
-        &&(!sheet||r[1]===sheet)
-        &&(!unit||r[iU]===unit)
-        &&(!sel.length||sel.includes(r[iS])||(r[iS]==""||r[iS]==null))
-        &&(!oS||od>=new Date(oS))
-        &&(!oE||od<=new Date(oE+"T23:59:59"))
-        &&(!dS||dd>=new Date(dS))
-        &&(!dE||dd<=new Date(dE+"T23:59:59"));
-  });
+  filteredRows = rows.filter(r => {
+  const od = new Date(r[iOD] || "");
+  const dd = new Date(r[iDD] || "");
+  const statusVal = r[iS] ? String(r[iS]).trim() : "";
+  const matchStatus = !sel.length ? true : sel.includes(statusVal);
+
+  return (!oNo || safeLower(r[iO]).includes(oNo))
+      && (!sheet || r[1] === sheet)
+      && (!unit || r[iU] === unit)
+      && matchStatus
+      && (!oS || od >= new Date(oS))
+      && (!oE || od <= new Date(oE + "T23:59:59"))
+      && (!dS || dd >= new Date(dS))
+      && (!dE || dd <= new Date(dE + "T23:59:59"));
+});
+
   currentPage=1; renderTable();
 }
 
@@ -186,6 +191,7 @@ loadData();
 </script>
 </body>
 </html>
+
 
 
 
