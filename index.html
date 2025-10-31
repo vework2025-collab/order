@@ -194,6 +194,19 @@ function resetFilters(){
   currentPage=1;
   renderTable();
 }
+function renderPagination(){
+  const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
+  const pg=document.getElementById("pagination");
+  if(totalPages<=1){pg.innerHTML="";return;}
+  let html=`<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Previous</button>`;
+  const startPage=Math.max(1,currentPage-2);
+  const endPage=Math.min(totalPages,startPage+4);
+  for(let i=startPage;i<=endPage;i++){
+    html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
+  }
+  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
+  pg.innerHTML=html;
+}
 
 function renderTable(){
   const tbl=document.getElementById("dataTable");
@@ -225,21 +238,6 @@ function renderTable(){
   tbl.innerHTML=html;
   renderPagination();
 }
-
-function renderPagination(){
-  const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
-  const pg=document.getElementById("pagination");
-  if(totalPages<=1){pg.innerHTML="";return;}
-  let html=`<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Previous</button>`;
-  const startPage=Math.max(1,currentPage-2);
-  const endPage=Math.min(totalPages,startPage+4);
-  for(let i=startPage;i<=endPage;i++){
-    html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
-  }
-  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
-  pg.innerHTML=html;
-}
-
 function gotoPage(p){currentPage=p;renderTable();}
 function gotoPrev(){if(currentPage>1){currentPage--;renderTable();}}
 function gotoNext(total){if(currentPage<total){currentPage++;renderTable();}}
@@ -286,3 +284,4 @@ loadData();
 </script>
 </body>
 </html>
+
