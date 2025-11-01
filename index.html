@@ -231,8 +231,15 @@ function renderTable(){
       }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
       html+=`<td>${val}</td>`;
     });
-    html+=`<td><button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button></td></tr>`;
+    const orderColIndex = headers.indexOf("Order No");
+const orderNum = orderColIndex >= 0 ? String(r[orderColIndex]).trim() : "";
+html += `
+  <td>
+    <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
+    <button onclick="generateOrderPrint('${r[1]}','${orderNum}')">🧾 Print</button>
+  </td>
+</tr>`;
+
   });
   html+="</tbody>";
   tbl.innerHTML=html;
@@ -299,6 +306,7 @@ loadData();
 </script>
 </body>
 </html>
+
 
 
 
