@@ -276,6 +276,11 @@ async function saveRow(btn,sheet){
 }
 
 async function generateOrderPrint(sheetName, orderNo) {
+  if (!sheetName || !orderNo) {
+  alert("❌ Missing data for print: " + sheetName + " / " + orderNo);
+  return;
+}
+
   if (!confirm("Generate Order Print for " + orderNo + "?")) return;
 
   try {
@@ -306,6 +311,7 @@ loadData();
 </script>
 </body>
 </html>
+
 
 
 
