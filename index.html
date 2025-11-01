@@ -82,7 +82,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHsQwpd59nqsvFnL0qPXUcqfR3NGeMD-rbP_8w3bo46y_bttsOn4jqpeQqBi_os_EC/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhst89Vb8McMIGdZAFzWbc0Q6J_nNngBDLITsGLRQ0jBvdi79pkePqpMBNcbfTdFPo/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -109,10 +109,11 @@ function toThumb(url){
 async function loadData(){
   document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
   try{
-    const res=await fetch(SCRIPT_URL);
-    const text=await res.text();
-    console.log("🔍 Raw Response:", text.slice(0,200));
-    const data=JSON.parse(text);
+    const res = await fetch(SCRIPT_URL);
+    const text = await res.text();
+    console.log("🔍 Raw fetch result:", text.slice(0,400));
+    const data = JSON.parse(text);
+
     const combined=combineSheetsObject(data);
     headers=combined[0]; rows=clean(combined.slice(1));
     rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
@@ -309,6 +310,7 @@ loadData();
 </script>
 </body>
 </html>
+
 
 
 
