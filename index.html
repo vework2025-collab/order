@@ -13,6 +13,7 @@
     padding: 6px 8px;
     text-align: left;
     font-size: 13px;
+    vertical-align: center;
     white-space: nowrap;
   }
   th { background: #f2f2f2; position: sticky; top: 0; z-index: 2; cursor: pointer; }
@@ -25,10 +26,14 @@
   select, input, button { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
   button { background: #007bff; color: white; cursor: pointer; border: none; }
   button:hover { background: #0056b3; }
+  #searchBar { width: 260px; }
 
-  .save-btn { background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; }
+  .save-btn { background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; }
+  .save-btn:hover { background: #218838; }
+
   .remark-cell { white-space: normal; max-width: 400px; min-width: 150px; }
 
+  /* Pagination styling */
   .pagination { text-align: center; margin-top: 10px; }
   .pagination button {
     margin: 0 2px;
@@ -37,10 +42,17 @@
     border-radius: 4px;
     background: white;
     color: #007bff;
+    cursor: pointer;
   }
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
   .pagination button.active { background: #007bff; color: white; }
   .pagination button[disabled] { opacity: 0.4; cursor: not-allowed; }
 
+  /* Show entries dropdown */
   #entriesSelect { border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; margin: 0 4px; }
 
   .status-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 1010px; margin: 0 auto; }
@@ -51,14 +63,17 @@
 
 <h1>💻 Vasansi Jaipur Order Dashboard</h1>
 
+<!-- Filters -->
 <div class="controls">
   <label>Order No: <input type="text" id="filterOrderNo" placeholder="Enter order no..."></label>
   <label>Order Date: <input type="date" id="filterOrderStart"> to <input type="date" id="filterOrderEnd"></label>
   <label>Delivery Date: <input type="date" id="filterDeliveryStart"> to <input type="date" id="filterDeliveryEnd"></label>
   <label>Unit: <select id="filterUnit"></select></label>
-  <label>Sheet Name: <select id="filterSheet"></select></label>
+<label>Sheet Name: <select id="filterSheet"></select></label>
+
 </div>
 
+<!-- Multi-status Filter -->
 <div class="controls">
   <label><strong>Status:</strong></label>
   <div class="status-checkboxes" id="statusCheckboxes"></div>
@@ -66,6 +81,7 @@
   <button onclick="resetFilters()">Reset</button>
 </div>
 
+<!-- Search + Show Entries -->
 <div class="controls" style="justify-content: space-between; align-items: center;">
   <input type="text" id="searchBar" placeholder="🔍 Search..." oninput="searchTable()">
   <label>Show 
@@ -82,142 +98,167 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtk7q_2_0Vw1kHf8Mw8BZfkW6EgI-qlr0XfGoJ1A4M5XTw109p7RG8wZKUKsoJKYYC/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby6D91yFQj_I9o86WYmoWexV-WYucZEzOTBt216F_7wW7xpiDJMQ5msFBmOvOLTe3-R/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
 ];
 const INCLUDED_COLUMNS = [
-  "Timestamp","Sheet Name","Order No","Order Date","Delivery Date",
-  "Item","Design No","Unit","Product Image","Order Form Photo",
-  "Remark","Status","Jobber Name"
+  "Timestamp","Sheet Name","Order No",
+  "Order Date","Delivery Date","Item","Design No","Unit",
+  "Product Image","Order Form Photo","Remark","Status","Jobber Name"
 ];
 
-let headers=[], rows=[], filteredRows=[], currentPage=1, rowsPerPage=25;
+let headers=[], rows=[], filteredRows=[], currentSort={index:null,dir:-1};
+let currentPage=1, rowsPerPage=25;
 
 const safeLower = v => (v==null?"":String(v).toLowerCase());
 const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
 
-function formatDateTime(v){
-  if(!v)return""; const d=new Date(v);
-  return isNaN(d)?v:d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+function formatDateTime(val) {
+  if (!val) return "";
+  const d = new Date(val);
+  return isNaN(d)
+    ? val
+    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+
 function toThumb(url){
-  if(!url)return""; const id=url.match(/[-\w]{25,}/); return id?`https://drive.google.com/thumbnail?id=${id[0]}&sz=w200-h200`:"";
+  if(!url||typeof url!=="string")return"";
+  const idMatch=url.match(/[-\w]{25,}/);
+  const id=idMatch?idMatch[0]:null;
+  return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:"";
 }
 
-async function loadData() {
-  const tbl = document.getElementById("dataTable");
-  tbl.innerHTML = "<tr><td>Loading data...</td></tr>";
-  try {
-    const res = await fetch(SCRIPT_URL);
-    const text = await res.text();
-    console.log("🔍 Raw fetch result (first 300 chars):", text.slice(0,300));
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      console.error("⚠️ JSON parse failed:", err);
-      tbl.innerHTML = "<tr><td>❌ Invalid JSON received from Apps Script</td></tr>";
-      return;
-    }
-
-    if (!data || typeof data !== "object") {
-      tbl.innerHTML = "<tr><td>❌ No valid data structure found</td></tr>";
-      return;
-    }
-
-    const combined = combineSheetsObject(data);
-    if (!combined || !combined.length) {
-      tbl.innerHTML = "<tr><td>❌ combineSheetsObject returned empty</td></tr>";
-      return;
-    }
-
-    headers = combined[0];
-    rows = clean(combined.slice(1));
-    rows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
-    filteredRows = rows;
+async function loadData(){
+  document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
+  try{
+    const res=await fetch(SCRIPT_URL);
+    const data=await res.json();
+    const combined=combineSheetsObject(data);
+    headers=combined[0].map(h=>h||"");
+    rows=clean(combined.slice(1));
+    rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
+    filteredRows=rows;
     populateFilters();
     renderTable();
-  } catch (e) {
-    console.error("❌ loadData error:", e);
-    tbl.innerHTML = `<tr><td>❌ ${e.message}</td></tr>`;
-  }
+  }catch(e){document.getElementById("dataTable").innerHTML=`<tr><td>❌ ${e.message}</td></tr>`;}
 }
 
-
-function combineSheetsObject(obj) {
-  const out = [INCLUDED_COLUMNS];
-  FIXED_SHEETS.forEach(sheet => {
-    const sheetData = obj[sheet];
-    if (!Array.isArray(sheetData) || sheetData.length < 2) return;
-    const headersRow = sheetData[0];
-    sheetData.slice(1).forEach(r => {
-      const mapped = INCLUDED_COLUMNS.map(h => {
-        const i = headersRow.indexOf(h);
-        return i === -1 ? "" : (r[i] || "");
+function combineSheetsObject(obj){
+  const out=[INCLUDED_COLUMNS];
+  FIXED_SHEETS.forEach(sheet=>{
+    const sheetData=obj[sheet];
+    if(!Array.isArray(sheetData)||sheetData.length<2)return;
+    const headers=sheetData[0];
+    sheetData.slice(1).forEach(r=>{
+      if(!Array.isArray(r))return;
+      const mapped=INCLUDED_COLUMNS.map(h=>{
+        const idx=headers.indexOf(h);
+        return idx===-1?"":r[idx]||"";
       });
-      const tIdx = headersRow.indexOf("Timestamp");
-      mapped[0] = tIdx >= 0 ? r[tIdx] : "";
-      mapped[1] = sheet;
+      const tsIdx=headers.indexOf("Timestamp");
+      mapped[0]=tsIdx>=0?r[tsIdx]:"";
+      mapped[1]=sheet;
       out.push(mapped);
     });
   });
   return out;
 }
 
+function populateFilters() {
+  const units = new Set();
+  const sheetNames = new Set();
+  const statuses = [
+    "Order Received","Dye","Print Process","Print Received","For Work",
+    "From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
+    "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"
+  ];
 
-function populateFilters(){
-  const units=new Set(), sheets=new Set();
-  const statuses=["","Order Received","Dye","Print Process","Print Received","For Work",
-  "From Work Received","Send To Party","Received From Party","Stitching","Finishing",
-  "Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
-  "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
-  const u=headers.indexOf("Unit"), s=headers.indexOf("Sheet Name");
-  rows.forEach(r=>{if(r[u])units.add(r[u]); if(r[s])sheets.add(r[s]);});
-  document.getElementById("filterUnit").innerHTML=`<option value="">All</option>${[...units].map(u=>`<option>${u}</option>`).join("")}`;
-  document.getElementById("filterSheet").innerHTML=`<option value="">All</option>${[...sheets].map(n=>`<option>${n}</option>`).join("")}`;
-  document.getElementById("statusCheckboxes").innerHTML=statuses.map(s=>`<label><input type="checkbox" value="${s}">${s||"(blank)"}</label>`).join("");
+  const uIdx = headers.indexOf("Unit");
+  const sIdx = headers.indexOf("Sheet Name");
+
+  rows.forEach(r => {
+    if (r[uIdx]) units.add(r[uIdx]);
+    if (r[sIdx]) sheetNames.add(r[sIdx]);
+  });
+
+  document.getElementById("filterUnit").innerHTML =
+    `<option value="">All</option>` + [...units].map(u => `<option>${u}</option>`).join("");
+
+  document.getElementById("filterSheet").innerHTML =
+    `<option value="">All</option>` + [...sheetNames].map(n => `<option>${n}</option>`).join("");
+
+  document.getElementById("statusCheckboxes").innerHTML =
+    statuses.map(s => `<label><input type="checkbox" value="${s}"> ${s}</label>`).join("");
 }
 
+
 function applyFilters(){
-  const oNo=safeLower(document.getElementById("filterOrderNo").value);
-  const oS=document.getElementById("filterOrderStart").value;
-  const oE=document.getElementById("filterOrderEnd").value;
-  const dS=document.getElementById("filterDeliveryStart").value;
-  const dE=document.getElementById("filterDeliveryEnd").value;
+  const orderNo=safeLower(document.getElementById("filterOrderNo").value);
+  const oStart=document.getElementById("filterOrderStart").value,oEnd=document.getElementById("filterOrderEnd").value;
+  const dStart=document.getElementById("filterDeliveryStart").value,dEnd=document.getElementById("filterDeliveryEnd").value;
   const unit=document.getElementById("filterUnit").value;
-  const sheet=document.getElementById("filterSheet").value;
-  const sel=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
-  const iO=headers.indexOf("Order No"), iOD=headers.indexOf("Order Date"), iDD=headers.indexOf("Delivery Date"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Status");
-
+  const sheetName = document.getElementById("filterSheet").value;
+  const selStatuses=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
+  const iO=headers.indexOf("Order No"),iOD=headers.indexOf("Order Date"),iDD=headers.indexOf("Delivery Date"),iU=headers.indexOf("Unit"),iS=headers.indexOf("Status");
   filteredRows=rows.filter(r=>{
-    const od=new Date(r[iOD]||"");
-    const dd=new Date(r[iDD]||"");
-    const statusVal=r[iS]?String(r[iS]).trim():"";
-    const matchStatus=!sel.length?true:sel.includes(statusVal);
-
-    return(!oNo||safeLower(r[iO]).includes(oNo))
-      &&(!sheet||r[1]===sheet)
-      &&(!unit||r[iU]===unit)
-      &&matchStatus
-      &&(!oS||od>=new Date(oS))
-      &&(!oE||od<=new Date(oE+"T23:59:59"))
-      &&(!dS||dd>=new Date(dS))
-      &&(!dE||dd<=new Date(dE+"T23:59:59"));
+    const od=new Date(r[iOD]||""),dd=new Date(r[iDD]||"");
+    return(!orderNo||safeLower(r[iO]).includes(orderNo))&&(!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
+(!unit||r[iU]===unit)&&(!selStatuses.length||selStatuses.includes(r[iS]))&&(!oStart||od>=new Date(oStart))&&(!oEnd||od<=new Date(oEnd+"T23:59:59"))&&(!dStart||dd>=new Date(dStart))&&(!dEnd||dd<=new Date(dEnd+"T23:59:59"));
   });
-  currentPage=1;
-  renderTable();
+  currentPage=1;renderTable();
 }
 
 function resetFilters(){
   document.querySelectorAll("input,select").forEach(e=>e.value="");
   document.querySelectorAll(".status-checkboxes input").forEach(i=>i.checked=false);
-  filteredRows=rows;
-  currentPage=1;
-  renderTable();
+  filteredRows=rows;currentPage=1;renderTable();
 }
+
+function renderTable(){
+  const tbl=document.getElementById("dataTable");
+  if(!filteredRows.length){tbl.innerHTML="<tr><td>No data found</td></tr>";document.getElementById("pagination").innerHTML="";return;}
+  const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage,page=filteredRows.slice(start,end);
+  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
+
+  page.forEach(r=>{
+    html+="<tr>";
+    headers.forEach((h,i)=>{
+      let hClean = h.trim();
+      let tdClass = hClean === 'Order No' ? ' class="order-no"' : '';
+      let val=r[i]||"",hLow=safeLower(h);
+      if(hLow.includes("timestamp"))val=formatDateTime(val);
+      else if(hLow.includes("date"))val=formatDateTime(val);
+      else if((hLow.includes("image")||hLow.includes("photo"))&&val.includes("drive.google.com")){
+        const t=toThumb(val);
+        val=t?`<a href="${val}" target="_blank"><img src="${t}"></a>`:val;
+      }else if(h==="Status"){
+        const sheetStatus=safeLower(r[i]);
+        const allStatuses=["Order Received","Dye","Print Process","Print Received","For Work",
+    "From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
+    "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
+        val="<select>"+allStatuses.map(s=>{
+          const sel=safeLower(s)===sheetStatus?"selected":"";
+          return `<option ${sel}>${s}</option>`;
+        }).join("")+"</select>";
+      }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
+      html+=`<td>${val}</td>`;
+    });
+    html+=`
+  <td>
+    <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
+    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
+  </td>
+</tr>`;
+
+  });
+
+  tbl.innerHTML=html+"</tbody>";
+  renderPagination();
+}
+
 function renderPagination(){
   const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
   const pg=document.getElementById("pagination");
@@ -232,47 +273,6 @@ function renderPagination(){
   pg.innerHTML=html;
 }
 
-function renderTable(){
-  const tbl=document.getElementById("dataTable");
-  if(!filteredRows.length){tbl.innerHTML="<tr><td>No data found</td></tr>";document.getElementById("pagination").innerHTML="";return;}
-
-  const start=(currentPage-1)*rowsPerPage;
-  const end=start+rowsPerPage;
-  const page=filteredRows.slice(start,end);
-
-  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
-  page.forEach(r=>{
-    html+="<tr>";
-    headers.forEach((h,i)=>{
-      let val=r[i]||"",low=safeLower(h);
-      if(low.includes("timestamp")||low.includes("date"))val=formatDateTime(val);
-      else if((low.includes("image")||low.includes("photo"))&&val.includes("drive.google.com")){
-        const t=toThumb(val);
-        val=t?`<a href='${val}' target='_blank'><img src='${t}'></a>`:val;
-      }else if(h==="Status"){
-        const all=["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
-        val="<select>"+all.map(s=>`<option ${s===r[i]?"selected":""}>${s||"(blank)"}</option>`).join("")+"</select>";
-      }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
-      html+=`<td>${val}</td>`;
-    });
-  // compute Order No safely for this row
-const orderColIndex = headers.indexOf("Order No");
-const orderNum = orderColIndex >= 0 ? String(r[orderColIndex]).trim() : "";
-
-// build actions cell (no design changes)
-html += `
-  <td>
-    <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
-  </td>
-</tr>`;
-
-
-  });
-  html+="</tbody>";
-  tbl.innerHTML=html;
-  renderPagination();
-}
 function gotoPage(p){currentPage=p;renderTable();}
 function gotoPrev(){if(currentPage>1){currentPage--;renderTable();}}
 function gotoNext(total){if(currentPage<total){currentPage++;renderTable();}}
@@ -285,14 +285,17 @@ function searchTable(){
 }
 
 async function saveRow(btn,sheet){
-  const tr=btn.closest("tr");
-  const tds=[...tr.children];
-  const orderCell=tr.querySelector("td.order-no");
-  let orderNo=orderCell?orderCell.innerText.trim():"";
-  if(!orderNo){
-    const iO=headers.findIndex(h=>h.replace(/\./g,"").trim().toLowerCase().includes("order no"));
-    if(iO>=0){orderNo=tds[iO]?.innerText?.trim()||"";}
+  const tr=btn.closest("tr"),tds=[...tr.children];
+  const orderCell = tr.querySelector("td.order-no");
+  let orderNo = orderCell ? orderCell.innerText.trim() : "";
+  if (!orderNo) {
+    const iO = headers.findIndex(h =>
+  h.replace(/\./g, "").trim().toLowerCase().includes("order no"));
+    if (iO >= 0) {
+      orderNo = tds[iO]?.innerText?.trim() || "";
+    }
   }
+  console.log("🧾 Extracted Order No:", orderNo);
   const sel=tr.querySelector("select"),rem=tr.querySelector(".remark-cell");
   const status=sel?sel.value:"",remark=rem?rem.innerText.trim():"";
   if(!orderNo)return alert("❌ Missing Order No");
@@ -302,40 +305,31 @@ async function saveRow(btn,sheet){
     if(j.success)alert("✅ Updated successfully");else throw new Error(j.error||"Failed");
   }catch(e){alert("❌ "+e.message);}
 }
-function generateOrderPrint(sheetName, orderNo) {
-  if (!sheetName || !orderNo) return alert("❌ Missing info");
+
+loadData();
+async function generateOrderPrint(sheetName, orderNo) {
   if (!confirm("Generate Order Print for " + orderNo + "?")) return;
-
-  google.script.run
-    .withSuccessHandler(function (res) {
-      console.log("🧾 Result from server:", res);
-      if (res.success && res.pdf) {
-        const w = window.open("");
-        w.document.write(
-          `<iframe width='100%' height='100%' src='data:application/pdf;base64,${res.pdf}'></iframe>`
-        );
-      } else alert("❌ " + (res.error || "No PDF returned"));
-    })
-    .withFailureHandler(function (err) {
-      alert("❌ " + err.message);
-    })
-    .handleAction({ action: "print", sheetName, orderNo });
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "print", sheetName, orderNo })
+    });
+    const j = await res.json();
+    if (j.success && j.pdf) {
+      const pdfWindow = window.open("");
+      pdfWindow.document.write(
+        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`
+      );
+    } else if (j.success && j.url) {
+      window.open(j.url, "_blank");
+    } else {
+      alert("❌ " + (j.error || "Failed to generate print"));
+    }
+  } catch (e) {
+    alert("❌ " + e.message);
+  }
 }
-
-   //  ✅ you must have this closing brace
-loadData();  // ✅ last line should exist
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
