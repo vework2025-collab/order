@@ -82,7 +82,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhst89Vb8McMIGdZAFzWbc0Q6J_nNngBDLITsGLRQ0jBvdi79pkePqpMBNcbfTdFPo/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw_zBa8gN7RQbk2XPBkjVK8yVItkThRyjg0WExNH9SONbY8dGg1p7R5ZsGWa6wNv_3o/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -298,25 +298,44 @@ async function saveRow(btn,sheet){
     if(j.success)alert("✅ Updated successfully");else throw new Error(j.error||"Failed");
   }catch(e){alert("❌ "+e.message);}
 }
-
 async function generateOrderPrint(sheetName, orderNo) {
-  if (!confirm("Generate Order Print for " + orderNo + "?")) return;
+  console.log("🧾 Print payload →", { sheetName, orderNo, SCRIPT_URL });
+
+  if (!sheetName || !orderNo) {
+    alert("❌ Missing sheetName or orderNo");
+    return;
+  }
+
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "print", sheetName, orderNo })
     });
-    const j = await res.json();
+
+    const text = await res.text();
+    console.log("🧾 Raw print response:", text.slice(0, 200));
+
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const j = JSON.parse(text);
     if (j.success && j.pdf) {
       const pdfWindow = window.open("");
-      pdfWindow.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`);
-    } else alert("❌ " + (j.error || "Failed to generate print"));
+      pdfWindow.document.write(
+        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`
+      );
+    } else {
+      alert("❌ " + (j.error || "Failed to generate print"));
+    }
   } catch (e) {
+    console.error("❌ Print fetch error:", e);
     alert("❌ " + e.message);
   }
+}
+
 }   //  ✅ you must have this closing brace
 loadData();  // ✅ last line should exist
 </script>
 </body>
 </html>
+
