@@ -190,26 +190,51 @@ function populateFilters() {
   document.getElementById("filterSheet").innerHTML =
     `<option value="">All</option>` + [...sheetNames].map(n => `<option>${n}</option>`).join("");
 
-  document.getElementById("statusCheckboxes").innerHTML =
-    statuses.map(s => `<label><input type="checkbox" value="${s}"> ${s}</label>`).join("");
+  document.getElementById("statusCheckboxes").innerHTML +=
+  `<label><input type="checkbox" value=""> (Blank)</label>`;
 }
 
 
 function applyFilters(){
-  const orderNo=safeLower(document.getElementById("filterOrderNo").value);
-  const oStart=document.getElementById("filterOrderStart").value,oEnd=document.getElementById("filterOrderEnd").value;
-  const dStart=document.getElementById("filterDeliveryStart").value,dEnd=document.getElementById("filterDeliveryEnd").value;
-  const unit=document.getElementById("filterUnit").value;
+  const orderNo = safeLower(document.getElementById("filterOrderNo").value);
+  const oStart  = document.getElementById("filterOrderStart").value;
+  const oEnd    = document.getElementById("filterOrderEnd").value;
+  const dStart  = document.getElementById("filterDeliveryStart").value;
+  const dEnd    = document.getElementById("filterDeliveryEnd").value;
+  const unit    = document.getElementById("filterUnit").value;
   const sheetName = document.getElementById("filterSheet").value;
-  const selStatuses=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
-  const iO=headers.indexOf("Order No"),iOD=headers.indexOf("Order Date"),iDD=headers.indexOf("Delivery Date"),iU=headers.indexOf("Unit"),iS=headers.indexOf("Status");
-  filteredRows=rows.filter(r=>{
-    const od=new Date(r[iOD]||""),dd=new Date(r[iDD]||"");
-    return(!orderNo||safeLower(r[iO]).includes(orderNo))&&(!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
-(!unit||r[iU]===unit)&&(!selStatuses.length||selStatuses.includes(r[iS]))&&(!oStart||od>=new Date(oStart))&&(!oEnd||od<=new Date(oEnd+"T23:59:59"))&&(!dStart||dd>=new Date(dStart))&&(!dEnd||dd<=new Date(dEnd+"T23:59:59"));
+  const selStatuses = [...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
+
+  const iO  = headers.indexOf("Order No"),
+        iOD = headers.indexOf("Order Date"),
+        iDD = headers.indexOf("Delivery Date"),
+        iU  = headers.indexOf("Unit"),
+        iS  = headers.indexOf("Status");
+
+  filteredRows = rows.filter(r => {
+    const statusVal = (r[iS] || "").trim();  // <-- may be blank
+    const od = new Date(r[iOD] || "");
+    const dd = new Date(r[iDD] || "");
+    const matchesStatus =
+      !selStatuses.length ||                      // no filter checked
+      selStatuses.includes(statusVal) ||          // match chosen status
+      (statusVal === "" && selStatuses.includes("")); // blank status included
+    return (
+      (!orderNo || safeLower(r[iO]).includes(orderNo)) &&
+      (!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
+      (!unit || r[iU] === unit) &&
+      matchesStatus &&
+      (!oStart || od >= new Date(oStart)) &&
+      (!oEnd   || od <= new Date(oEnd + "T23:59:59")) &&
+      (!dStart || dd >= new Date(dStart)) &&
+      (!dEnd   || dd <= new Date(dEnd + "T23:59:59"))
+    );
   });
-  currentPage=1;renderTable();
+
+  currentPage = 1;
+  renderTable();
 }
+
 
 function resetFilters(){
   document.querySelectorAll("input,select").forEach(e=>e.value="");
@@ -235,14 +260,21 @@ function renderTable(){
         const t=toThumb(val);
         val=t?`<a href="${val}" target="_blank"><img src="${t}"></a>`:val;
       }else if(h==="Status"){
-        const sheetStatus=safeLower(r[i]);
-        const allStatuses=["Order Received","Dye","Print Process","Print Received","For Work",
-    "From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
-    "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
-        val="<select>"+allStatuses.map(s=>{
-          const sel=safeLower(s)===sheetStatus?"selected":"";
-          return `<option ${sel}>${s}</option>`;
-        }).join("")+"</select>";
+  const sheetStatus = r[i] ? safeLower(r[i]) : "";  // <-- preserve blank
+  const allStatuses = [
+    "",  // first empty option for blank status
+    "Order Received","Dye","Print Process","Print Received","For Work",
+    "From Work Received","Send To Party","Received From Party","Stitching",
+    "Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69",
+    "Received At D69","Ready For Delivery","Billed","Tracking Updated",
+    "Hand Delivery","Delivered","Cancelled"
+  ];
+  val = "<select>" + allStatuses.map(s => {
+    const display = s || "";  // blank visible as blank
+    const sel = safeLower(s) === sheetStatus ? "selected" : "";
+    return `<option ${sel}>${display}</option>`;
+  }).join("") + "</select>";
+}
       }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
       html+=`<td>${val}</td>`;
     });
@@ -333,5 +365,6 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
