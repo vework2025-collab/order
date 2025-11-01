@@ -82,7 +82,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQk7C1nAnqNu56U4hbKEgRLWoSYfDOWj40N-yN1hJq_8vB6NFGRpW55yA8NiBL8n8w/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwxJrOUgt3ICXJ_d5tPd7pKmXR37Qh-QOSqHhmfTkaR--w2jJhjsQzqOUT5nyBdHaZW/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -263,7 +263,7 @@ const orderNum = orderColIndex >= 0 ? String(r[orderColIndex]).trim() : "";
 html += `
   <td>
     <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-    <button onclick="generateOrderPrint(${JSON.stringify(r[1])}, ${JSON.stringify(orderNum)})">🧾 Print</button>
+    <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
   </td>
 </tr>`;
 
@@ -312,8 +312,8 @@ function generateOrderPrint(sheetName, orderNo) {
   google.script.run
     .withSuccessHandler(function (res) {
       if (res.success && res.pdf) {
-        const pdfWindow = window.open("");
-        pdfWindow.document.write(
+        const w = window.open("");
+        w.document.write(
           `<iframe width='100%' height='100%' src='data:application/pdf;base64,${res.pdf}'></iframe>`
         );
       } else {
@@ -331,6 +331,7 @@ loadData();  // ✅ last line should exist
 </script>
 </body>
 </html>
+
 
 
 
