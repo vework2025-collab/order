@@ -82,7 +82,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAof63QvE7gmxrZTkqVZmQyJmCVpkwqV73xC1K1NfrP6C2UxRMAwnoxk-xkNyycx7W/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwfA9okEofbn1rWynCF8Rlq_4qM7nVawSRz9UpW8J0itWk0AmXeuZX0nqaqczGZ1Hyx/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -303,22 +303,18 @@ async function saveRow(btn,sheet){
   }catch(e){alert("❌ "+e.message);}
 }
 function generateOrderPrint(sheetName, orderNo) {
-  if (!sheetName || !orderNo) {
-    alert("❌ Missing sheetName or orderNo");
-    return;
-  }
+  if (!sheetName || !orderNo) return alert("❌ Missing info");
   if (!confirm("Generate Order Print for " + orderNo + "?")) return;
 
   google.script.run
     .withSuccessHandler(function (res) {
+      console.log("🧾 Result from server:", res);
       if (res.success && res.pdf) {
         const w = window.open("");
         w.document.write(
           `<iframe width='100%' height='100%' src='data:application/pdf;base64,${res.pdf}'></iframe>`
         );
-      } else {
-        alert("❌ " + (res.error || "Failed to generate print"));
-      }
+      } else alert("❌ " + (res.error || "No PDF returned"));
     })
     .withFailureHandler(function (err) {
       alert("❌ " + err.message);
@@ -331,6 +327,7 @@ loadData();  // ✅ last line should exist
 </script>
 </body>
 </html>
+
 
 
 
