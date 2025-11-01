@@ -146,26 +146,26 @@ async function loadData(){
   }catch(e){document.getElementById("dataTable").innerHTML=`<tr><td>❌ ${e.message}</td></tr>`;}
 }
 
-function combineSheetsObject(obj){
-  const out=[INCLUDED_COLUMNS];
-  FIXED_SHEETS.forEach(sheet=>{
-    const sheetData=obj[sheet];
-    if(!Array.isArray(sheetData)||sheetData.length<2)return;
-    const headers=sheetData[0];
-    sheetData.slice(1).forEach(r=>{
-      if(!Array.isArray(r))return;
-      const mapped=INCLUDED_COLUMNS.map(h=>{
-        const idx=headers.indexOf(h);
-        return idx===-1?"":r[idx]||"";
-      });
-      const tsIdx=headers.indexOf("Timestamp");
-      mapped[0]=tsIdx>=0?r[tsIdx]:"";
-      mapped[1]=sheet;
-      out.push(mapped);
-    });
+function combineSheetsObject(obj) {
+  const all = [["Sheet Name", ...Object.values(obj)[0][0]]];
+  Object.entries(obj).forEach(([sheetName, rows]) => {
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i].slice(); // copy row
+      // append sheet name at front
+      r.unshift(sheetName);
+
+      // keep true blank statuses – don't auto-fill
+      const statusIndex = rows[0].indexOf("Status");
+      if (statusIndex >= 0 && (r[statusIndex] === undefined || r[statusIndex] === null)) {
+        r[statusIndex] = ""; // stay blank
+      }
+
+      all.push(r);
+    }
   });
-  return out;
+  return all;
 }
+
 
 function populateFilters() {
   const units = new Set();
@@ -212,7 +212,10 @@ function applyFilters(){
         iS  = headers.indexOf("Status");
 
   filteredRows = rows.filter(r => {
-    const statusVal = (r[iS] || "").trim();  // <-- may be blank
+    const statusVal = (r[iS] ?? "").trim();
+const matchesStatus =
+  !selStatuses.length ||            // no checkboxes selected
+  selStatuses.includes(statusVal);  // include blank if it matches ""
     const od = new Date(r[iOD] || "");
     const dd = new Date(r[iDD] || "");
     const matchesStatus =
@@ -365,6 +368,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
