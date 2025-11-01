@@ -98,7 +98,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpWvQLdmB6A3wdrXoF2tzjYSCl5pZgS3c-lDUxWgufR3TCeky2PpZ5QXqxOPDq9nVI/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyOPJSPmbOH1FgyiTonpi-Vmyt5HXgHUs5hjXVxz4sGZlciLNaj7UXUhZDNmzrmVsot/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -131,7 +131,7 @@ function toThumb(url){
   return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:"";
 }
 
-async function loadData(){
+async function loadData(){console.log("▶ loadData() started");
   document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
   try{
     const res=await fetch(SCRIPT_URL);
@@ -212,10 +212,9 @@ function applyFilters(){
         iS  = headers.indexOf("Status");
 
   filteredRows = rows.filter(r => {
-    const statusVal = (r[iS] ?? "").trim();
+    const statusVal = (r[iS] || "").trim();
 const matchesStatus =
-  !selStatuses.length ||            // no checkboxes selected
-  selStatuses.includes(statusVal);  // include blank if it matches ""
+  !selStatuses.length || selStatuses.includes(statusVal);
     const od = new Date(r[iOD] || "");
     const dd = new Date(r[iDD] || "");
     const matchesStatus =
@@ -262,7 +261,9 @@ function renderTable(){
       else if((hLow.includes("image")||hLow.includes("photo"))&&val.includes("drive.google.com")){
         const t=toThumb(val);
         val=t?`<a href="${val}" target="_blank"><img src="${t}"></a>`:val;
-      }else if(h==="Status"){
+      }else if (h === "Status") {
+  val = r[i] || ""; // leave blank if empty
+}
   const sheetStatus = r[i] ? safeLower(r[i]) : "";  // <-- preserve blank
   const allStatuses = [
     "",  // first empty option for blank status
@@ -368,6 +369,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
