@@ -82,7 +82,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJi5dXeuyDr8imqbLWV1V8OSYcQT1Ucdo7ssnESnIOj9hhMIhveBx6MhXF-tlSBxi8/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQk7C1nAnqNu56U4hbKEgRLWoSYfDOWj40N-yN1hJq_8vB6NFGRpW55yA8NiBL8n8w/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -302,43 +302,36 @@ async function saveRow(btn,sheet){
     if(j.success)alert("✅ Updated successfully");else throw new Error(j.error||"Failed");
   }catch(e){alert("❌ "+e.message);}
 }
-async function generateOrderPrint(sheetName, orderNo) {
+function generateOrderPrint(sheetName, orderNo) {
   if (!sheetName || !orderNo) {
     alert("❌ Missing sheetName or orderNo");
     return;
   }
   if (!confirm("Generate Order Print for " + orderNo + "?")) return;
 
-  try {
-    // IMPORTANT: use a "simple request" to avoid CORS preflight
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple content-type
-      body: JSON.stringify({ action: "print", sheetName, orderNo })
-    });
-
-    // Read as text first to avoid JSON parse errors on non-200s
-    const text = await res.text();
-    if (!res.ok) throw new Error("HTTP " + res.status + " " + text);
-
-    const j = JSON.parse(text);
-    if (j.success && j.pdf) {
-      const pdfWindow = window.open("");
-      pdfWindow.document.write(
-        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`
-      );
-    } else {
-      alert("❌ " + (j.error || "Failed to generate print"));
-    }
-  } catch (e) {
-    alert("❌ " + e.message);
-  }
+  google.script.run
+    .withSuccessHandler(function (res) {
+      if (res.success && res.pdf) {
+        const pdfWindow = window.open("");
+        pdfWindow.document.write(
+          `<iframe width='100%' height='100%' src='data:application/pdf;base64,${res.pdf}'></iframe>`
+        );
+      } else {
+        alert("❌ " + (res.error || "Failed to generate print"));
+      }
+    })
+    .withFailureHandler(function (err) {
+      alert("❌ " + err.message);
+    })
+    .handleAction({ action: "print", sheetName, orderNo });
 }
+
    //  ✅ you must have this closing brace
 loadData();  // ✅ last line should exist
 </script>
 </body>
 </html>
+
 
 
 
