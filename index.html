@@ -300,48 +300,23 @@ async function saveRow(btn,sheet){
 }
 
 async function generateOrderPrint(sheetName, orderNo) {
-  console.log("🧾 Printing:", { sheetName, orderNo, SCRIPT_URL });
-  if (!sheetName || !orderNo) {
-    alert("❌ Missing sheetName or orderNo");
-    return;
-  }
   if (!confirm("Generate Order Print for " + orderNo + "?")) return;
-
-    try {
+  try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "print", sheetName, orderNo })
     });
-
-    if (!res.ok) throw new Error("HTTP " + res.status);
     const j = await res.json();
-
     if (j.success && j.pdf) {
       const pdfWindow = window.open("");
-      pdfWindow.document.write(
-        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`
-      );
-    } else {
-      alert("❌ " + (j.error || "Failed to generate print"));
-    }
+      pdfWindow.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`);
+    } else alert("❌ " + (j.error || "Failed to generate print"));
   } catch (e) {
-    console.error("Print error:", e);
     alert("❌ " + e.message);
   }
-loadData();
+}   //  ✅ you must have this closing brace
+loadData();  // ✅ last line should exist
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
