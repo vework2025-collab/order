@@ -82,7 +82,7 @@
 <div class="pagination" id="pagination"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw_zBa8gN7RQbk2XPBkjVK8yVItkThRyjg0WExNH9SONbY8dGg1p7R5ZsGWa6wNv_3o/exec";  // Replace this
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMHmDruGQXnTI1ipPSP3TjrtgUQQdpKbw1502bJAoejp20rDkfAFzU1qwA4PFnN6LD/exec";  // Replace this
 const FIXED_SHEETS = [
   "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
   "Exhibition Sales Order", "Wholesale Order"
@@ -255,14 +255,18 @@ function renderTable(){
       }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
       html+=`<td>${val}</td>`;
     });
-    const orderColIndex = headers.indexOf("Order No");
+  // compute Order No safely for this row
+const orderColIndex = headers.indexOf("Order No");
 const orderNum = orderColIndex >= 0 ? String(r[orderColIndex]).trim() : "";
+
+// build actions cell (no design changes)
 html += `
   <td>
     <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-    <button onclick="generateOrderPrint('${r[1]}','${orderNum}')">🧾 Print</button>
+    <button onclick="generateOrderPrint(${JSON.stringify(r[1])}, ${JSON.stringify(orderNum)})">🧾 Print</button>
   </td>
 </tr>`;
+
 
   });
   html+="</tbody>";
@@ -299,24 +303,23 @@ async function saveRow(btn,sheet){
   }catch(e){alert("❌ "+e.message);}
 }
 async function generateOrderPrint(sheetName, orderNo) {
-  console.log("🧾 Print payload →", { sheetName, orderNo, SCRIPT_URL });
-
   if (!sheetName || !orderNo) {
     alert("❌ Missing sheetName or orderNo");
     return;
   }
+  if (!confirm("Generate Order Print for " + orderNo + "?")) return;
 
   try {
+    // IMPORTANT: use a "simple request" to avoid CORS preflight
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // simple content-type
       body: JSON.stringify({ action: "print", sheetName, orderNo })
     });
 
+    // Read as text first to avoid JSON parse errors on non-200s
     const text = await res.text();
-    console.log("🧾 Raw print response:", text.slice(0, 200));
-
-    if (!res.ok) throw new Error("HTTP " + res.status);
+    if (!res.ok) throw new Error("HTTP " + res.status + " " + text);
 
     const j = JSON.parse(text);
     if (j.success && j.pdf) {
@@ -328,13 +331,14 @@ async function generateOrderPrint(sheetName, orderNo) {
       alert("❌ " + (j.error || "Failed to generate print"));
     }
   } catch (e) {
-    console.error("❌ Print fetch error:", e);
     alert("❌ " + e.message);
   }
-}   //  ✅ you must have this closing brace
+}
+   //  ✅ you must have this closing brace
 loadData();  // ✅ last line should exist
 </script>
 </body>
 </html>
+
 
 
