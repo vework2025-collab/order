@@ -283,7 +283,7 @@ async function generateOrderPrint(sheetName, orderNo) {
   }
   if (!confirm("Generate Order Print for " + orderNo + "?")) return;
 
-  try {
+    try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -302,15 +302,14 @@ async function generateOrderPrint(sheetName, orderNo) {
       alert("❌ " + (j.error || "Failed to generate print"));
     }
   } catch (e) {
+    console.error("Print error:", e);
     alert("❌ " + e.message);
   }
-}
-
-
 loadData();
 </script>
 </body>
 </html>
+
 
 
 
