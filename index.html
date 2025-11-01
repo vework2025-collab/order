@@ -150,14 +150,13 @@ function combineSheetsObject(obj) {
   const all = [["Sheet Name", ...Object.values(obj)[0][0]]];
   Object.entries(obj).forEach(([sheetName, rows]) => {
     for (let i = 1; i < rows.length; i++) {
-      const r = rows[i].slice(); // copy row
-      // append sheet name at front
+      const r = rows[i].slice();
       r.unshift(sheetName);
 
-      // keep true blank statuses – don't auto-fill
+      // === keep blank status truly blank ===
       const statusIndex = rows[0].indexOf("Status");
-      if (statusIndex >= 0 && (r[statusIndex] === undefined || r[statusIndex] === null)) {
-        r[statusIndex] = ""; // stay blank
+      if (statusIndex >= 0 && (r[statusIndex] == null || r[statusIndex] === "")) {
+        r[statusIndex] = ""; // do NOT default to 'Order Received'
       }
 
       all.push(r);
@@ -165,6 +164,7 @@ function combineSheetsObject(obj) {
   });
   return all;
 }
+
 
 
 function populateFilters() {
@@ -217,10 +217,9 @@ const matchesStatus =
   !selStatuses.length || selStatuses.includes(statusVal);
     const od = new Date(r[iOD] || "");
     const dd = new Date(r[iDD] || "");
-    const matchesStatus =
-      !selStatuses.length ||                      // no filter checked
-      selStatuses.includes(statusVal) ||          // match chosen status
-      (statusVal === "" && selStatuses.includes("")); // blank status included
+    const statusVal = (r[iS] || "").trim();
+const matchesStatus =
+  !selStatuses.length || selStatuses.includes(statusVal);
     return (
       (!orderNo || safeLower(r[iO]).includes(orderNo)) &&
       (!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
@@ -369,6 +368,7 @@ async function generateOrderPrint(sheetName, orderNo) {
 </script>
 </body>
 </html>
+
 
 
 
