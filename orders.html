@@ -8,13 +8,11 @@
 <style>
   #dataTable { width:100%; border-collapse:collapse; background:#fff; }
   #dataTable th, #dataTable td { border:1px solid #ddd; padding:6px 8px; font-size:13px; white-space:nowrap; }
-  #dataTable th { background:#f5f6f7; position: sticky; top: 0; cursor:pointer; }
+  #dataTable th { background:#f5f6f7; position: sticky; top: 0; }
   .controls { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; align-items:center; }
-  .status-checkboxes { display:flex; flex-wrap:wrap; gap:8px; }
-  .pagination { margin-top:10px; }
-  .pagination button { margin:0 2px; padding:5px 10px; border:1px solid #007bff; border-radius:4px; background:#fff; color:#007bff; cursor:pointer; }
-  .pagination button.active { background:#007bff; color:#fff; }
-  .pagination button[disabled]{ opacity:.4; cursor:not-allowed; }
+  .save-btn { background:#28a745; color:#fff; padding:5px 10px; border:none; border-radius:4px; cursor:pointer; }
+  .save-btn:hover { background:#218838; }
+  .remark { min-width:180px; max-width:420px; white-space:normal; }
   img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
 </style>
 </head>
@@ -62,19 +60,7 @@
 
       <div class="controls">
         <label><strong>Status:</strong></label>
-        <div class="status-checkboxes" id="statusCheckboxes"></div>
-      </div>
-
-      <div class="controls" style="justify-content: space-between;">
-        <input type="text" id="searchBar" placeholder="🔍 Search..." />
-        <label>Show
-          <select id="entriesSelect">
-            <option value="10">10</option>
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select> entries
-        </label>
+        <div id="statusBoxes" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
       </div>
 
       <table id="dataTable"><tr><td>Loading data...</td></tr></table>
@@ -87,15 +73,20 @@
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
 const SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
+
+// exact columns you requested (table order)
+const VISIBLE = [
+  "Sr No","Order No","Order Date","Customer Name","Item","Design No",
+  "Delivery Date","Unit","Status","Remark","Product Image","Order Form Photo"
+];
+// full status list (with blank first)
 const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
 
-let rows=[], filteredRows=[], headers=[], sortState={index:-1,asc:true}, currentPage=1, rowsPerPage=25;
+let rows = [];     // each row: { ...mapped fields..., _sheet: "Jaipur Sales Order" }
+let filtered = [];
+let currentPage=1, rowsPerPage=25;
 
-function clean(arr){
-  return Array.isArray(arr)
-    ? arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c)))
-    : [];
-}
+function clean(arr){ return Array.isArray(arr) ? arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))) : []; }
 
 function toThumb(url){
   const m = (typeof url==="string") ? url.match(/[-\w]{25,}/) : null;
@@ -110,30 +101,27 @@ async function loadData(){
     const res = await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
     const json = await res.json();
 
-    // flatten -> array of objects
-    let out=[];
+    // Flatten and map to your visible columns
+    const out = [];
     SHEETS.forEach(name=>{
       const d=json[name];
       if(!Array.isArray(d)||d.length<2) return;
       const hs = d[0];
       d.slice(1).forEach(r=>{
-        const obj={};
-        hs.forEach((h,i)=> obj[h]= (r[i]==null?"":r[i]) );
-        obj["Sheet Name"]=name;
-        out.push(obj);
+        const o={};
+        VISIBLE.forEach(col=>{
+          const idx = hs.indexOf(col);
+          o[col] = idx===-1 ? "" : (r[idx]??"");
+        });
+        o._sheet = name; // keep sheet for save/print & filtering
+        out.push(o);
       });
     });
 
-    if(!out.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; return; }
-
     rows = out;
-    headers = Object.keys(rows[0]);
-
     populateFilters();
-    // deep-link (supports #<Sheet> or #sheet=&unit=&status=)
-    if (location.hash) applyDeepLink();
-
-    filteredRows = rows.slice();
+    handleHashDeepLink();   // apply branch/status/unit if present
+    filtered = rows.slice();
     renderTable();
   }catch(e){
     console.error(e);
@@ -142,47 +130,41 @@ async function loadData(){
 }
 
 function populateFilters(){
-  const unitSet = new Set();
-  const sheetSet = new Set();
+  const units = [...new Set(rows.map(r=>r["Unit"]).filter(Boolean))];
+  const sheets = [...new Set(rows.map(r=>r._sheet).filter(Boolean))];
 
-  rows.forEach(r=>{
-    if(r["Unit"]) unitSet.add(String(r["Unit"]));
-    if(r["Sheet Name"]) sheetSet.add(String(r["Sheet Name"]));
-  });
+  filterUnit.innerHTML  = `<option value="">All</option>` + units.map(u=>`<option>${u}</option>`).join("");
+  filterSheet.innerHTML = `<option value="">All</option>` + sheets.map(s=>`<option>${s}</option>`).join("");
 
-  filterUnit.innerHTML = `<option value="">All</option>` + [...unitSet].map(u=>`<option>${u}</option>`).join("");
-  filterSheet.innerHTML = `<option value="">All</option>` + [...sheetSet].map(s=>`<option>${s}</option>`).join("");
-
-  statusCheckboxes.innerHTML = ALL_STATUSES.map(s=>{
+  // status checkboxes (include blank)
+  statusBoxes.innerHTML = ALL_STATUSES.map(s=>{
     const label = s || "(blank)";
     return `<label><input type="checkbox" value="${s}"> ${label}</label>`;
   }).join("");
 
   btnApply.onclick = applyFilters;
   btnReset.onclick = resetFilters;
-  searchBar.oninput = searchTable;
-  entriesSelect.onchange = ()=>{ rowsPerPage=parseInt(entriesSelect.value,10); currentPage=1; renderTable(); };
 }
 
 function applyFilters(){
   const orderNo = (filterOrderNo.value||"").toLowerCase();
-  const oStart = filterOrderStart.value, oEnd = filterOrderEnd.value;
-  const dStart = filterDeliveryStart.value, dEnd = filterDeliveryEnd.value;
-  const unit = filterUnit.value, sheet = filterSheet.value;
-  const chosenStatuses = [...document.querySelectorAll("#statusCheckboxes input:checked")].map(i=>i.value);
+  const oS=filterOrderStart.value, oE=filterOrderEnd.value;
+  const dS=filterDeliveryStart.value, dE=filterDeliveryEnd.value;
+  const unit=filterUnit.value, sheet=filterSheet.value;
+  const chosen = [...document.querySelectorAll("#statusBoxes input:checked")].map(i=>i.value);
 
-  filteredRows = rows.filter(r=>{
+  filtered = rows.filter(r=>{
     const od = new Date(r["Order Date"]||"");
     const dd = new Date(r["Delivery Date"]||"");
-    const status = (r["Status"]==null?"":String(r["Status"]));
+    const st = r["Status"] ?? "";
     return (!orderNo || String(r["Order No"]||"").toLowerCase().includes(orderNo))
-        && (!sheet || r["Sheet Name"]===sheet)
+        && (!sheet || r._sheet===sheet)
         && (!unit || r["Unit"]===unit)
-        && (!chosenStatuses.length || chosenStatuses.includes(status))
-        && (!oStart || od>=new Date(oStart))
-        && (!oEnd   || od<=new Date(oEnd+"T23:59:59"))
-        && (!dStart || dd>=new Date(dStart))
-        && (!dEnd   || dd<=new Date(dEnd+"T23:59:59"));
+        && (!chosen.length || chosen.includes(st))
+        && (!oS || od>=new Date(oS))
+        && (!oE || od<=new Date(oE+"T23:59:59"))
+        && (!dS || dd>=new Date(dS))
+        && (!dE || dd<=new Date(dE+"T23:59:59"));
   });
 
   currentPage=1;
@@ -191,105 +173,84 @@ function applyFilters(){
 
 function resetFilters(){
   document.querySelectorAll(".card .controls input, .card .controls select").forEach(el=>el.value="");
-  document.querySelectorAll("#statusCheckboxes input").forEach(i=>i.checked=false);
-  filteredRows = rows.slice();
+  document.querySelectorAll("#statusBoxes input").forEach(i=>i.checked=false);
+  filtered = rows.slice();
   currentPage=1;
   renderTable();
 }
 
-function searchTable(){
-  const term = (searchBar.value||"").toLowerCase();
-  filteredRows = rows.filter(r=> Object.values(r).some(v=> String(v||"").toLowerCase().includes(term)) );
-  currentPage=1;
-  renderTable();
-}
+// Deep-link handler: supports #<Sheet> OR #sheet=&unit=&status=
+function handleHashDeepLink(){
+  if (!location.hash) return;
+  resetFilters(); // start clean
 
-// deep-link handler
-function applyDeepLink(){
   const raw = location.hash.substring(1);
-  resetFilters();
-
-  if (!raw.includes("=")) {
-    // #Branch Name
+  if (!raw.includes("=")){
+    // #Jaipur%20Sales%20Order
     filterSheet.value = decodeURIComponent(raw);
     applyFilters();
     return;
   }
-
   const p = new URLSearchParams(raw);
-  const sheet = p.get("sheet");
-  const unit = p.get("unit");
+  const sheet  = p.get("sheet");
+  const unit   = p.get("unit");
   const status = p.get("status");
 
   if (sheet) filterSheet.value = decodeURIComponent(sheet);
   if (unit)  filterUnit.value  = decodeURIComponent(unit);
   if (status){
-    const target = decodeURIComponent(status);
-    document.querySelectorAll("#statusCheckboxes input").forEach(i=> i.checked = (i.value===target) );
+    const s = decodeURIComponent(status);
+    document.querySelectorAll("#statusBoxes input").forEach(i=> i.checked = (i.value===s) );
   }
   applyFilters();
 }
 
 function renderTable(){
   const tbl = document.getElementById("dataTable");
-  if(!filteredRows.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; pagination.innerHTML=""; return; }
+  if(!filtered.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; pagination.innerHTML=""; return; }
 
-  // headers row (sortable)
-  let thead = "<thead><tr>" + headers.map((h,i)=>`<th data-idx="${i}">${h}</th>`).join("") + "</tr></thead>";
+  const cols = [...VISIBLE, "Actions"];
+  let thead = "<thead><tr>" + cols.map(h=>`<th>${h}</th>`).join("") + "</tr></thead>";
 
-  // pagination slice
   const start = (currentPage-1)*rowsPerPage, end = start+rowsPerPage;
-  const page = filteredRows.slice(start,end);
+  const page = filtered.slice(start,end);
 
-  // body
   let tbody = "<tbody>";
-  page.forEach(r=>{
-    tbody += "<tr>";
-    headers.forEach(h=>{
-      let v = r[h] == null ? "" : String(r[h]);
-      if ((/image|photo/i).test(h) && v.includes("drive.google.com")){
+  page.forEach((r, idx)=>{
+    tbody += `<tr data-sheet="${r._sheet}">`;
+    VISIBLE.forEach(h=>{
+      let v = r[h] ?? "";
+      if ((h==="Product Image" || h==="Order Form Photo") && String(v).includes("drive.google.com")){
         const t = toThumb(v);
         v = t ? `<a href="${v}" target="_blank"><img src="${t}"></a>` : v;
+      } else if (h==="Status"){
+        const cur = String(v||"").trim().toLowerCase();
+        v = `<select class="status-select">` + ALL_STATUSES.map(s=>{
+          const sel = (String(s).trim().toLowerCase()===cur) ? "selected" : "";
+          const label = s || "(blank)";
+          return `<option ${sel} value="${s}">${label}</option>`;
+        }).join("") + `</select>`;
+      } else if (h==="Remark"){
+        v = `<div class="remark" contenteditable="true">${v}</div>`;
       }
       tbody += `<td>${v}</td>`;
     });
+    const orderNo = String(r["Order No"]||"").replace(/"/g,"&quot;");
+    tbody += `<td>
+      <button class="save-btn" onclick="saveRow(this,'${orderNo}')">Save</button>
+      <button onclick="printRow(this,'${orderNo}')">🧾 Print</button>
+    </td>`;
     tbody += "</tr>";
   });
   tbody += "</tbody>";
-
   tbl.innerHTML = thead + tbody;
 
-  // sorting events
-  tbl.querySelectorAll("th").forEach(th=>{
-    th.onclick = ()=>{
-      const idx = parseInt(th.dataset.idx,10);
-      sortState.asc = sortState.index===idx ? !sortState.asc : true;
-      sortState.index = idx;
-
-      const key = headers[idx];
-      filteredRows.sort((a,b)=>{
-        const A = String(a[key]??"");
-        const B = String(b[key]??"");
-        const nA = parseFloat(A.replace(/[^0-9.]/g,""));
-        const nB = parseFloat(B.replace(/[^0-9.]/g,""));
-        const cmp = (isNaN(nA)||isNaN(nB)) ? A.localeCompare(B) : (nA-nB);
-        return sortState.asc ? cmp : -cmp;
-      });
-      currentPage=1;
-      renderTable();
-    };
-  });
-
-  // pagination
-  renderPagination();
-}
-
-function renderPagination(){
-  const totalPages = Math.ceil(filteredRows.length/rowsPerPage);
+  // simple pagination
+  const totalPages = Math.ceil(filtered.length/rowsPerPage);
   const box = document.getElementById("pagination");
   if (totalPages<=1){ box.innerHTML=""; return; }
   let html = `<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Prev</button>`;
-  const s = Math.max(1, currentPage-2);
+  const s = Math.max(1,currentPage-2);
   const e = Math.min(totalPages, s+4);
   for(let i=s;i<=e;i++){
     html += `<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
@@ -300,6 +261,47 @@ function renderPagination(){
 function gotoPage(p){ currentPage=p; renderTable(); }
 function gotoPrev(){ if(currentPage>1){ currentPage--; renderTable(); } }
 function gotoNext(t){ if(currentPage<t){ currentPage++; renderTable(); } }
+
+// ===== Save / Print using your Apps Script doPost =====
+async function saveRow(btn, orderNo){
+  const tr = btn.closest("tr");
+  const sheetName = tr.dataset.sheet;
+  const sel = tr.querySelector(".status-select");
+  const remarkDiv = tr.querySelector(".remark");
+  const status = sel ? sel.value : "";
+  const remark = remarkDiv ? remarkDiv.innerText.trim() : "";
+  if (!orderNo) return alert("❌ Missing Order No");
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ sheetName, orderNo, status, remark })
+    });
+    const j = await res.json();
+    if (j.success) alert("✅ Updated successfully"); else throw new Error(j.error||"Failed");
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function printRow(btn, orderNo){
+  const sheetName = btn.closest("tr").dataset.sheet;
+  if (!orderNo) return alert("❌ Missing Order No");
+  if (!confirm("Generate Order Print for " + orderNo + "?")) return;
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify({ action:"print", sheetName, orderNo })
+    });
+    const j = await res.json();
+    if (j.success && j.pdf){
+      const w = window.open("");
+      w.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`);
+    } else if (j.success && j.url){
+      window.open(j.url,"_blank");
+    } else {
+      alert("❌ " + (j.error || "Failed to generate print"));
+    }
+  }catch(e){ alert("❌ "+e.message); }
+}
 
 loadData();
 </script>
