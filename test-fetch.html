@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h3>Google Apps Script Fetch Test</h3>
+<pre id="out">Loading…</pre>
+<script>
+const SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
+
+fetch(`${SCRIPT_URL}?t=${Date.now()}`)
+  .then(r => r.text())
+  .then(t => {
+    document.getElementById("out").textContent = t.slice(0, 500);
+    console.log("✅ Raw response snippet:", t.substring(0, 500));
+  })
+  .catch(e => {
+    document.getElementById("out").textContent = "❌ " + e;
+    console.error(e);
+  });
+</script>
+</body>
+</html>
