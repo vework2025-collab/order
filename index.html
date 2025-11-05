@@ -11,8 +11,6 @@
   .kpi .label{ font-size:12px; color:#666; margin-bottom:6px; }
   .kpi .value{ font-size:22px; font-weight:700; }
   .kpi .sub  { font-size:12px; color:#888; margin-top:6px; }
-  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
-  .chip{ border:1px solid #e0e0e0; padding:4px 8px; border-radius:999px; background:#fff; font-size:12px; }
   .table { width:100%; border-collapse:collapse; background:#fff; }
   .table th, .table td { border:1px solid #e3e3e3; padding:6px 8px; font-size:13px; white-space:nowrap; }
   .table th { background:#f5f6f7; cursor:pointer; }
@@ -20,6 +18,7 @@
   .bar>span{ display:block; height:100%; background:#007bff; }
   .clickable { cursor:pointer; color:#007bff; font-weight:600; }
   .clickable:hover { text-decoration: underline; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; align-items:center; }
 </style>
 </head>
 <body>
@@ -53,8 +52,8 @@
   <main class="content">
     <div class="kpis">
       <div class="kpi"><div class="label">Total Orders</div><div class="value" id="kpiTotal">–</div><div class="sub" id="kpiRange"></div></div>
-      <div class="kpi"><div class="label">In Production</div><div class="value" id="kpiInProd">–</div><div class="sub">blank + early statuses</div></div>
-      <div class="kpi"><div class="label">Ready For Delivery</div><div class="value" id="kpiRFD">–</div><div class="sub">Dispatch→Billed group</div></div>
+      <div class="kpi"><div class="label">In Production</div><div class="value" id="kpiInProd">–</div><div class="sub">(blank + early statuses)</div></div>
+      <div class="kpi"><div class="label">Ready For Delivery</div><div class="value" id="kpiRFD">–</div><div class="sub">Dispatch→Billed</div></div>
       <div class="kpi"><div class="label">Delivered</div><div class="value" id="kpiDelivered">–</div><div class="sub">Tracking/Hand/Delivered/Cancelled</div></div>
     </div>
 
@@ -67,7 +66,6 @@
         <button class="btn" id="applyDash">Apply</button>
         <button id="resetDash">Reset</button>
       </div>
-      <div class="chips" id="topStatuses"></div>
     </div>
 
     <div class="card">
@@ -89,7 +87,6 @@
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
 const SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
-const INCLUDED = ["Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Unit","Product Image","Order Form Photo","Remark","Status","Jobber Name"];
 const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
 
 const sets = {
@@ -98,93 +95,89 @@ const sets = {
   delivered: ["Tracking Updated","Hand Delivery","Delivered","Cancelled"]
 };
 
-let headers=[], rows=[], dashRows=[];
+let rows=[]; // objects: { _sheet, Status, Unit, OrderDate (Date or ""), ... }
 
-function clean(arr){
-  return Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
-}
+function clean(arr){ return Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[]; }
 
 async function loadData(){
   try{
-    const res=await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
-    const json=await res.json();
-    // flatten
-    let out=[];
+    const res = await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
+    const json = await res.json();
+
+    // Dynamically map each sheet; pick fields if present
+    const out=[];
     SHEETS.forEach(name=>{
-      const d=json[name]; if(!Array.isArray(d)||d.length<2) return;
-      const hs=d[0];
+      const d=json[name];
+      if(!Array.isArray(d)||d.length<2) return;
+      const hs = d[0];
+      const idx = k => hs.indexOf(k);
+      const iStatus = idx("Status");
+      const iUnit   = idx("Unit");
+      const iOD     = idx("Order Date");
+      const iTS     = idx("Timestamp");
       d.slice(1).forEach(r=>{
-        const obj={};
-        INCLUDED.forEach(h=>{
-          const idx=hs.indexOf(h); obj[h]= idx===-1 ? "" : (r[idx]??"");
-        });
-        obj["Sheet Name"]=name;
-        out.push(obj);
+        const status = iStatus===-1 ? "" : (r[iStatus]??"");
+        const unit   = iUnit===-1   ? "" : (r[iUnit]??"");
+        const odRaw  = iOD!==-1 ? r[iOD] : (iTS!==-1 ? r[iTS] : "");
+        const od = odRaw ? new Date(odRaw) : "";
+        out.push({ _sheet:name, Status:String(status), Unit:String(unit), OrderDate: isNaN(od)? "" : od });
       });
     });
 
-    headers = INCLUDED.slice();
-    rows = out.sort((a,b)=>new Date(b["Timestamp"]||0)-new Date(a["Timestamp"]||0));
-    dashRows = rows.slice();
-
-    populateQuickFilters();
-    refreshDashboard();
+    rows = out;
+    populateFilters();
+    renderDashboard();
   }catch(e){
     console.error(e);
     document.getElementById("branchTable").innerHTML = `<tr><td style="color:#b00020;font-weight:600">❌ ${e.message}</td></tr>`;
   }
 }
 
-function populateQuickFilters(){
-  const sheets=[...new Set(rows.map(r=>r["Sheet Name"]).filter(Boolean))];
-  const units=[...new Set(rows.map(r=>r["Unit"]).filter(Boolean))];
+function populateFilters(){
+  const sheets=[...new Set(rows.map(r=>r._sheet).filter(Boolean))];
+  const units=[...new Set(rows.map(r=>r.Unit).filter(Boolean))];
   sheetFilter.innerHTML = `<option value="">All</option>` + sheets.map(s=>`<option>${s}</option>`).join("");
   unitFilter.innerHTML  = `<option value="">All</option>` + units.map(u=>`<option>${u}</option>`).join("");
 
   applyDash.onclick = ()=>{
-    const s=sheetFilter.value, u=unitFilter.value, ds=dStart.value, de=dEnd.value;
-    dashRows = rows.filter(r=>{
-      const okS = !s || r["Sheet Name"]===s;
-      const okU = !u || r["Unit"]===u;
-      const d = new Date(r["Order Date"]||"");
-      const okD1 = !ds || d>=new Date(ds);
-      const okD2 = !de || d<=new Date(de+"T23:59:59");
-      return okS && okU && okD1 && okD2;
-    });
-    refreshDashboard();
+    renderDashboard(sheetFilter.value, unitFilter.value, dStart.value, dEnd.value);
   };
   resetDash.onclick = ()=>{
     dStart.value=""; dEnd.value=""; sheetFilter.value=""; unitFilter.value="";
-    dashRows = rows.slice();
-    refreshDashboard();
+    renderDashboard();
   };
 }
 
-function stVal(r){ return (r["Status"]||"").trim(); }
+function renderDashboard(sheet="", unit="", ds="", de=""){
+  // filter for dashboard
+  const data = rows.filter(r=>{
+    const okS = !sheet || r._sheet===sheet;
+    const okU = !unit  || r.Unit===unit;
+    const okD1= !ds    || (r.OrderDate && r.OrderDate>=new Date(ds));
+    const okD2= !de    || (r.OrderDate && r.OrderDate<=new Date(de+"T23:59:59"));
+    return okS && okU && okD1 && okD2;
+  });
 
-function refreshDashboard(){
-  const total = dashRows.length;
-  const inProd = dashRows.filter(r=>sets.inProd.includes(stVal(r))).length;
-  const rfd    = dashRows.filter(r=>sets.rfd.includes(stVal(r))).length;
-  const delivered = dashRows.filter(r=>sets.delivered.includes(stVal(r))).length;
+  // KPIs
+  const total = data.length;
+  const inProd = data.filter(r=>sets.inProd.includes((r.Status||"").trim())).length;
+  const rfd    = data.filter(r=>sets.rfd.includes((r.Status||"").trim())).length;
+  const delivered = data.filter(r=>sets.delivered.includes((r.Status||"").trim())).length;
 
   kpiTotal.textContent = total;
   kpiInProd.textContent = inProd;
   kpiRFD.textContent = rfd;
   kpiDelivered.textContent = delivered;
 
-  const ods = dashRows.map(r=>new Date(r["Order Date"]||"")).filter(d=>!isNaN(d));
+  const ods = data.map(r=>r.OrderDate).filter(d=>d && !isNaN(d));
   kpiRange.textContent = ods.length
     ? new Date(Math.min(...ods)).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) + " – " +
       new Date(Math.max(...ods)).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
     : "";
 
-  const counts = dashRows.reduce((m,r)=>{ const s=stVal(r); m[s]=(m[s]||0)+1; return m; },{});
-  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  topStatuses.innerHTML = top.map(([s,c])=>`<span class="chip">${s||"(blank)"} — ${c}</span>`).join("");
-
-  const bySheet = groupCounts(dashRows, "Sheet Name");
-  const byUnit  = groupCounts(dashRows, "Unit");
+  // counts by sheet & unit
+  const bySheet = groupCounts(data, "_sheet");
+  const byUnit  = groupCounts(data, "Unit");
   renderCountTable("branchTable","Branch", bySheet);
   renderCountTable("unitTable","Unit", byUnit);
 
@@ -195,11 +188,13 @@ function refreshDashboard(){
 
 function groupCounts(data, key){
   const map = {};
+  // seed with all statuses so columns are stable
+  const seed = ()=>Object.fromEntries(ALL_STATUSES.map(s=>[s,0]));
   data.forEach(r=>{
     const k = r[key] || "(unknown)";
-    const s = stVal(r);
-    if(!map[k]) map[k] = Object.fromEntries(ALL_STATUSES.map(x=>[x,0]));
-    map[k][s] = (map[k][s]||0) + 1;
+    const s = (r.Status||"").trim();
+    if(!map[k]) map[k]=seed();
+    map[k][s] = (map[k][s]||0)+1;
   });
   return map;
 }
@@ -220,10 +215,9 @@ function renderCountTable(tableId, firstCol, countsObj){
     tbody += `<tr><td>${k}</td>`;
     ALL_STATUSES.forEach(s=>{
       const val = o[s]||0;
-      const eKey = encodeURIComponent(k), eStat = encodeURIComponent(s);
       const click = firstCol==="Branch"
-        ? `openOrders('sheet','${eKey}','${eStat}')`
-        : `openOrders('unit','${eKey}','${eStat}')`;
+        ? `openOrders('sheet','${encodeURIComponent(k)}','${encodeURIComponent(s)}')`
+        : `openOrders('unit','${encodeURIComponent(k)}','${encodeURIComponent(s)}')`;
       tbody += `<td class="clickable" onclick="${click}">${val}</td>`;
     });
     const pct = Math.round(t/maxT*100);
@@ -244,15 +238,15 @@ function openOrders(kind, key, status){
   if (kind==="sheet") p.set("sheet", key);
   if (kind==="unit")  p.set("unit", key);
   p.set("status", status);
-  window.open(`orders.html#${p.toString()}`, "_blank");
+  // force hard load so filters reset + apply
+  window.location.href = `orders.html#${p.toString()}`;
 }
 
-/* generic sort for dashboard tables */
+/* basic table sorting for dashboard tables */
 function enableTableSorting(tableId){
   const tbl = document.getElementById(tableId);
   tbl.querySelectorAll("th").forEach((th,idx)=>{
     th.onclick = ()=>{
-      // skip first col label when needed? here we sort by clicked col anyway
       const tbody = tbl.querySelector("tbody");
       const rows = [...tbody.querySelectorAll("tr")];
       const asc = !th.classList.contains("sort-asc");
