@@ -4,19 +4,15 @@
 <meta charset="utf-8" />
 <title>Vasansi Enterprise Application — Orders</title>
 <link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:,">
 <style>
-  /* Keep your existing table look inside the card */
+  body { font-family: Segoe UI, sans-serif; }
   #dataTable { width:100%; border-collapse:collapse; background:#fff; }
-  #dataTable th, #dataTable td { border:1px solid #e3e3e3; padding:6px 8px; font-size:13px; white-space:nowrap; }
-  #dataTable th { background:#f5f6f7; }
-  img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
-  .remark-cell { white-space: normal; max-width: 400px; min-width: 150px; }
-  .save-btn { background:#28a745; color:#fff; padding:5px 10px; border:none; border-radius:4px; cursor:pointer; }
-  .pagination button { margin:0 2px; padding:5px 10px; border:1px solid #007bff; border-radius:4px; background:#fff; color:#007bff; cursor:pointer; }
-  .pagination button.active { background:#007bff; color:#fff; }
-  .pagination button[disabled] { opacity:.4; cursor:not-allowed; }
-  #entriesSelect { border:1px solid #ccc; border-radius:4px; padding:4px 6px; margin:0 4px; }
-  .status-checkboxes { display:flex; flex-wrap:wrap; gap:8px; }
+  #dataTable th, #dataTable td {
+    border:1px solid #ddd; padding:6px 8px; font-size:13px; white-space:nowrap;
+  }
+  #dataTable th { background:#f5f6f7; position:sticky; top:0; }
+  img { width:100px; height:150px; object-fit:cover; border-radius:5px; }
 </style>
 </head>
 <body>
@@ -26,7 +22,7 @@
     <div class="user">Hemant Solanki ▼</div>
   </div>
 
-    <aside class="sidebar">
+  <aside class="sidebar">
     <ul class="nav">
       <li><a href="index.html">🏠 <span class="label">Dashboard</span></a></li>
       <li><a href="dispatch.html">📦 <span class="label">Dispatch</span></a></li>
@@ -47,39 +43,10 @@
     </ul>
   </aside>
 
-  <!-- Content -->
   <main class="content">
     <div class="card">
-      <h2>Online Orders List</h2>
-      <div class="controls">
-        <label>Order No <input type="text" id="filterOrderNo" placeholder="Enter order no..."></label>
-        <label>Order Date <input type="date" id="filterOrderStart"> to <input type="date" id="filterOrderEnd"></label>
-        <label>Delivery Date <input type="date" id="filterDeliveryStart"> to <input type="date" id="filterDeliveryEnd"></label>
-        <label>Unit <select id="filterUnit"></select></label>
-        <label>Sheet <select id="filterSheet"></select></label>
-        <button class="btn" onclick="applyFilters()">Search</button>
-        <button onclick="resetFilters()">Reset</button>
-      </div>
-
-      <div class="controls">
-        <label><strong>Status:</strong></label>
-        <div class="status-checkboxes" id="statusCheckboxes"></div>
-      </div>
-
-      <div class="controls" style="justify-content: space-between;">
-        <input type="text" id="searchBar" placeholder="🔍 Search..." oninput="searchTable()">
-        <label>Show
-          <select id="entriesSelect" onchange="changeEntries()">
-            <option value="10">10</option>
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select> entries
-        </label>
-      </div>
-
-      <table id="dataTable"></table>
-      <div class="pagination" id="pagination"></div>
+      <h2>All Orders</h2>
+      <table id="dataTable"><tr><td>Loading data...</td></tr></table>
     </div>
   </main>
 </div>
@@ -94,54 +61,69 @@ const SHEETS = [
   "Exhibition Sales Order","Wholesale Order"
 ];
 
+// ========== Helpers ==========
 function clean(arr){
   return Array.isArray(arr)
     ? arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c)))
     : [];
 }
 
+// ========== Loader ==========
 async function loadData(){
   const tbl=document.getElementById("dataTable");
-  tbl.innerHTML="<tr><td>Loading…</td></tr>";
+  tbl.innerHTML="<tr><td>Loading data...</td></tr>";
   try{
     const res=await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
+    if(!res.ok) throw new Error("Network error: "+res.status);
     const json=await res.json();
-    console.log("✅ Received keys:", Object.keys(json));
+    console.log("✅ Received keys:",Object.keys(json));
 
+    // flatten all sheets into one array of objects
     let rows=[];
-    SHEETS.forEach(s=>{
-      const d=json[s];
-      if(!Array.isArray(d)||d.length<2) return;
-      const headers=d[0];
-      d.slice(1).forEach(r=>{
+    SHEETS.forEach(name=>{
+      const data=json[name];
+      if(!Array.isArray(data)||data.length<2) return;
+      const headers=data[0];
+      data.slice(1).forEach(r=>{
         const obj={};
         headers.forEach((h,i)=>obj[h]=r[i]||"");
-        obj.SheetName=s;
+        obj.Sheet=name;
         rows.push(obj);
       });
     });
 
-    if(!rows.length){
-      tbl.innerHTML="<tr><td>No rows found</td></tr>";
-      return;
+    if(!rows.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; return; }
+
+    // if page hash (like #Jaipur Sales Order) exists, filter by sheet
+    if(location.hash){
+      const branch = decodeURIComponent(location.hash.substring(1));
+      rows = rows.filter(r => r.Sheet === branch);
+      console.log("🔍 Filtered for sheet:", branch, rows.length);
     }
 
-    // headers
-    const cols=Object.keys(rows[0]);
-    let html="<thead><tr>"+cols.map(c=>`<th>${c}</th>`).join("")+"</tr></thead><tbody>";
+    // render table
+    const headers = Object.keys(rows[0]);
+    let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"</tr></thead><tbody>";
     rows.forEach(r=>{
-      html+="<tr>"+cols.map(c=>`<td>${r[c]}</td>`).join("")+"</tr>";
+      html+="<tr>"+headers.map(h=>{
+        let v=r[h];
+        // small image preview for Drive links
+        if(typeof v==="string" && v.includes("drive.google.com")){
+          const id=(v.match(/[-\\w]{25,}/)||[])[0];
+          if(id) v=`<a href="${v}" target="_blank"><img src="https://drive.google.com/thumbnail?id=${id}&sz=w100-h100"></a>`;
+        }
+        return `<td>${v}</td>`;
+      }).join("")+"</tr>";
     });
     html+="</tbody>";
     tbl.innerHTML=html;
   }catch(e){
     console.error(e);
-    tbl.innerHTML=`<tr><td style='color:red'>❌ ${e.message}</td></tr>`;
+    tbl.innerHTML=`<tr><td style="color:red">❌ ${e.message}</td></tr>`;
   }
 }
-loadData();
-</script>
 
+loadData();
 </script>
 </body>
 </html>
