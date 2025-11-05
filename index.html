@@ -20,10 +20,11 @@
       <li><a href="jobwork.html">🧵 <span class="label">Job Work</span></a></li>
       <li class="section-title">Order</li>
       <li>
-        <a href="orders.html">📋 <span class="label">Orders</span></a>
+        <a href="orders.html">📋 <span class="label">All Orders</span></a>
         <ul class="submenu">
           <li><a href="orders.html#Branch%20Sales%20Order">Branch Sales Order</a></li>
           <li><a href="orders.html#Jaipur%20Sales%20Order">Jaipur Sales Order</a></li>
+          <li><a href="orders.html#Jaipur%20Alterations">Jaipur Alterations</a></li>
           <li><a href="orders.html#Exhibition%20Sales%20Order">Exhibition Sales Order</a></li>
           <li><a href="orders.html#Wholesale%20Order">Wholesale Order</a></li>
         </ul>
@@ -35,13 +36,23 @@
 
   <!-- Content -->
   <main class="content">
+    <div class="kpis" id="kpiRow">
+      <div class="kpi"><div class="label">Total Orders</div><div class="value" id="kpiTotal">–</div><div class="sub" id="kpiRange"></div></div>
+      <div class="kpi"><div class="label">Ready For Delivery</div><div class="value" id="kpiRFD">–</div><div class="sub">status = Ready For Delivery</div></div>
+      <div class="kpi"><div class="label">In Production</div><div class="value" id="kpiInProd">–</div><div class="sub">not Delivered / Cancelled</div></div>
+      <div class="kpi"><div class="label">Delivered</div><div class="value" id="kpiDelivered">–</div><div class="sub">status = Delivered</div></div>
+    </div>
+
     <div class="card">
-      <h2>Dashboard</h2>
+      <h2>Quick Filters</h2>
       <div class="controls">
-        <label><input type="checkbox" id="useFiltered"> Use current filters (from Orders)</label>
-        <button class="btn" id="refreshBtn">Refresh</button>
+        <label>Order Date <input type="date" id="dStart"> to <input type="date" id="dEnd"></label>
+        <label>Sheet <select id="sheetFilter"></select></label>
+        <label>Unit <select id="unitFilter"></select></label>
+        <button class="btn" id="applyDash">Apply</button>
+        <button id="resetDash">Reset</button>
       </div>
-      <small>Counts are computed from the live Google Sheet data.</small>
+      <div class="chips" id="topStatuses"></div>
     </div>
 
     <div class="card">
@@ -62,7 +73,7 @@
 
 <script src="assets/app.js"></script>
 <script>
-/* === CONFIG (same endpoint you already use) === */
+/* === CONFIG (same as orders) === */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
 const FIXED_SHEETS = [
   "Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"
@@ -78,7 +89,7 @@ const ALL_STATUSES = [
   "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"
 ];
 
-let headers=[], rows=[];
+let headers=[], rows=[], dashRows=[];
 
 const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
 
@@ -87,22 +98,23 @@ async function loadData(){
   const data = await res.json();
   const combined = combineSheetsObject(data);
   headers = combined[0].map(h=>h||"");
-  rows = clean(combined.slice(1));
-  rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
+  rows = clean(combined.slice(1)).sort((a,b)=>new Date(b[0])-new Date(a[0]));
+  dashRows = rows.slice(); // working copy
+  populateQuickFilters();
+  refreshDashboard();
 }
 
 function combineSheetsObject(obj){
   const out=[INCLUDED_COLUMNS];
   FIXED_SHEETS.forEach(sheet=>{
-    const sheetData=obj[sheet];
-    if(!Array.isArray(sheetData)||sheetData.length<2)return;
-    const hs=sheetData[0];
-    sheetData.slice(1).forEach(r=>{
+    const sd=obj[sheet]; if(!Array.isArray(sd)||sd.length<2) return;
+    const hs=sd[0];
+    sd.slice(1).forEach(r=>{
       const mapped=INCLUDED_COLUMNS.map(h=>{
-        const idx=hs.indexOf(h); return idx===-1?"":(r[idx]||"");
+        const ix=hs.indexOf(h); return ix===-1?"":(r[ix]||"");
       });
-      const tsIdx=hs.indexOf("Timestamp");
-      mapped[0]=tsIdx>=0?r[tsIdx]:"";
+      const ts=hs.indexOf("Timestamp");
+      mapped[0]=ts>=0?r[ts]:"";
       mapped[1]=sheet;
       out.push(mapped);
     });
@@ -112,21 +124,21 @@ function combineSheetsObject(obj){
 
 function seedCounts(){ return Object.fromEntries(ALL_STATUSES.map(s=>[s,0])); }
 
-function buildCounts(data, keyIndex){
-  const idxStatus = headers.indexOf("Status");
-  const acc = {};
+function buildCounts(data, idxKey){
+  const idxStatus=headers.indexOf("Status");
+  const map={};
   data.forEach(r=>{
-    const key = r[keyIndex] || "(unknown)";
-    const st  = r[idxStatus] || "";
-    if(!acc[key]) acc[key]=seedCounts();
-    acc[key][st] = (acc[key][st]||0) + 1;
+    const key=r[idxKey]||"(unknown)";
+    const st=r[idxStatus]||"";
+    if(!map[key]) map[key]=seedCounts();
+    map[key][st]=(map[key][st]||0)+1;
   });
-  return acc;
+  return map;
 }
 
-function renderCountTable(tableId, firstColLabel, countsObj){
+function renderCountTable(tableId, firstCol, countsObj){
   const tbl=document.getElementById(tableId);
-  let thead=`<thead><tr><th>${firstColLabel}</th>`;
+  let thead=`<thead><tr><th>${firstCol}</th>`;
   ALL_STATUSES.forEach(s=>thead+=`<th>${s||"(blank)"}</th>`); thead+=`<th>Total</th></tr></thead>`;
   let tbody="<tbody>";
   const entries=Object.entries(countsObj);
@@ -147,20 +159,81 @@ function renderCountTable(tableId, firstColLabel, countsObj){
   tbl.innerHTML=thead+tbody;
 }
 
-async function refresh(){
-  if(!rows.length) await loadData();
-  const idxSheet = headers.indexOf("Sheet Name");
-  const idxUnit  = headers.indexOf("Unit");
+function refreshDashboard(){
+  // KPI calculations
+  const idxStatus=headers.indexOf("Status");
+  const idxOrderDate=headers.indexOf("Order Date");
+  const total=dashRows.length;
+  const delivered=dashRows.filter(r=>(r[idxStatus]||"")==="Delivered").length;
+  const rfd=dashRows.filter(r=>(r[idxStatus]||"")==="Ready For Delivery").length;
+  const inProd=dashRows.filter(r=>{
+    const st=(r[idxStatus]||"");
+    return st!=="Delivered" && st!=="Cancelled";
+  }).length;
 
-  const branchCounts = buildCounts(rows, idxSheet);
-  const unitCounts   = buildCounts(rows, idxUnit);
+  document.getElementById("kpiTotal").textContent=total;
+  document.getElementById("kpiDelivered").textContent=delivered;
+  document.getElementById("kpiRFD").textContent=rfd;
+  document.getElementById("kpiInProd").textContent=inProd;
 
-  renderCountTable("branchTable","Branch",branchCounts);
-  renderCountTable("unitTable","Unit",unitCounts);
+  // show current date span (min..max)
+  const dates = dashRows.map(r=>new Date(r[idxOrderDate]||"")).filter(d=>!isNaN(d));
+  if(dates.length){
+    const min = new Date(Math.min.apply(null, dates));
+    const max = new Date(Math.max.apply(null, dates));
+    document.getElementById("kpiRange").textContent =
+      min.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) + " – " +
+      max.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+  } else {
+    document.getElementById("kpiRange").textContent = "";
+  }
+
+  // top statuses chips
+  const counts = dashRows.reduce((m,r)=>{
+    const st=r[idxStatus]||""; m[st]=(m[st]||0)+1; return m;
+  },{});
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById("topStatuses").innerHTML =
+    top.map(([s,c])=>`<span class="chip">${(s||"(blank)")} — ${c}</span>`).join("");
+
+  // tables
+  const idxSheet=headers.indexOf("Sheet Name");
+  const idxUnit=headers.indexOf("Unit");
+  renderCountTable("branchTable","Branch", buildCounts(dashRows, idxSheet));
+  renderCountTable("unitTable","Unit", buildCounts(dashRows, idxUnit));
 }
 
-document.getElementById("refreshBtn").addEventListener("click", refresh);
-refresh();
+/* Quick filters (dashboard-only) */
+function populateQuickFilters(){
+  const idxSheet=headers.indexOf("Sheet Name");
+  const idxUnit=headers.indexOf("Unit");
+  const sheets=[...new Set(rows.map(r=>r[idxSheet]).filter(Boolean))];
+  const units=[...new Set(rows.map(r=>r[idxUnit]).filter(Boolean))];
+
+  sheetFilter.innerHTML = `<option value="">All</option>` + sheets.map(s=>`<option>${s}</option>`).join("");
+  unitFilter.innerHTML  = `<option value="">All</option>` + units.map(u=>`<option>${u}</option>`).join("");
+
+  applyDash.addEventListener("click", ()=>{
+    const s=sheetFilter.value, u=unitFilter.value, ds=dStart.value, de=dEnd.value;
+    const idxOrderDate=headers.indexOf("Order Date");
+    dashRows = rows.filter(r=>{
+      const okS = !s || r[idxSheet]===s;
+      const okU = !u || r[idxUnit]===u;
+      const d = new Date(r[idxOrderDate]||"");
+      const okD1 = !ds || d>=new Date(ds);
+      const okD2 = !de || d<=new Date(de+"T23:59:59");
+      return okS && okU && okD1 && okD2;
+    });
+    refreshDashboard();
+  });
+
+  resetDash.addEventListener("click", ()=>{
+    dStart.value=""; dEnd.value=""; sheetFilter.value=""; unitFilter.value="";
+    dashRows = rows.slice(); refreshDashboard();
+  });
+}
+
+loadData();
 </script>
 </body>
 </html>
