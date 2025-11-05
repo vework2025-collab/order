@@ -94,4 +94,6 @@ body {
 .chip {
   border:1px solid #e0e0e0; padding:4px 8px; border-radius:999px; background:#fff; font-size:12px;
 }
+.clickable { cursor:pointer; color:#007bff; font-weight:600; }
+.clickable:hover { text-decoration: underline; }
 
