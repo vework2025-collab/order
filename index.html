@@ -67,6 +67,18 @@
         <button id="resetDash">Reset</button>
       </div>
     </div>
+<!-- Universal Search + Entries per page -->
+<div class="controls" style="justify-content: space-between;">
+  <input type="text" id="searchBar" placeholder="🔍 Search..." style="flex:1; max-width:300px;">
+  <label>Show
+    <select id="entriesSelect">
+      <option value="10">10</option>
+      <option value="25" selected>25</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select> entries
+  </label>
+</div>
 
     <div class="card">
       <h2>Branch-wise Status Count</h2>
@@ -270,3 +282,4 @@ loadData();
 </script>
 </body>
 </html>
+
