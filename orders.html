@@ -213,7 +213,8 @@ function renderTable() {
   const tbl = document.getElementById("dataTable");
   if (!filtered.length) {
     tbl.innerHTML = "<tr><td>No data found</td></tr>";
-    pagination.innerHTML = "";
+    document.getElementById("pagination").innerHTML = "";
+    document.getElementById("pageInfo").textContent = "";
     return;
   }
 
@@ -221,7 +222,7 @@ function renderTable() {
   function fmtDate(v) {
     if (!v) return "";
     const d = new Date(v);
-    if (isNaN(d)) return v; // show as-is if invalid
+    if (isNaN(d)) return v;
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
@@ -229,83 +230,63 @@ function renderTable() {
   }
 
   const cols = [...VISIBLE, "Actions"];
-  let thead =
-    "<thead><tr>" + cols.map((h) => `<th>${h}</th>`).join("") + "</tr></thead>";
+  let thead = "<thead><tr>" + cols.map(h => `<th>${h}</th>`).join("") + "</tr></thead>";
 
-  const start = (currentPage - 1) * rowsPerPage,
-    end = start + rowsPerPage;
-  const page = filtered.slice(start, end);
+  const start = (currentPage - 1) * rowsPerPage;
+  const end   = Math.min(start + rowsPerPage, filtered.length);
+  const page  = filtered.slice(start, end);
 
   let tbody = "<tbody>";
-
-  page.forEach((r) => {
+  page.forEach(r => {
     tbody += `<tr data-sheet="${r._sheet}">`;
-    VISIBLE.forEach((h) => {
+    VISIBLE.forEach(h => {
       let v = r[h] ?? "";
+      if (["Order Date","Delivery Date"].includes(h)) v = fmtDate(v);
 
-      // ✅ format date columns as dd/mm/yyyy
-      if (["Order Date", "Delivery Date"].includes(h)) {
-        v = fmtDate(v);
-      }
-
-      // ✅ render image preview
       if ((h === "Product Image" || h === "Order Form Photo") && String(v).includes("drive.google.com")) {
         const t = toThumb(v);
-        v = t
-          ? `<a href="${v}" target="_blank"><img src="${t}"></a>`
-          : v;
-      }
-
-      // ✅ render status dropdown
-      else if (h === "Status") {
+        v = t ? `<a href="${v}" target="_blank"><img src="${t}"></a>` : v;
+      } else if (h === "Status") {
         const cur = String(v || "").trim().toLowerCase();
-        v =
-          `<select class="status-select">` +
-          ALL_STATUSES.map((s) => {
-            const sel = String(s).trim().toLowerCase() === cur ? "selected" : "";
-            const label = s || "(blank)";
-            return `<option ${sel} value="${s}">${label}</option>`;
-          }).join("") +
-          `</select>`;
-      }
-
-      // ✅ render editable remark
-      else if (h === "Remark") {
+        v = `<select class="status-select">` +
+            ALL_STATUSES.map(s=>{
+              const sel = String(s).trim().toLowerCase()===cur ? "selected":"";
+              const label = s || "(blank)";
+              return `<option ${sel} value="${s}">${label}</option>`;
+            }).join("") + `</select>`;
+      } else if (h === "Remark") {
         v = `<div class="remark" contenteditable="true">${v}</div>`;
       }
-
       tbody += `<td>${v}</td>`;
     });
-
-    // ✅ actions: save + print
-    const orderNo = String(r["Order No"] || "").replace(/"/g, "&quot;");
+    const orderNo = String(r["Order No"] || "").replace(/"/g,"&quot;");
     tbody += `<td>
-        <button class="save-btn" onclick="saveRow(this,'${orderNo}')">Save</button>
-        <button onclick="printRow(this,'${orderNo}')">🧾 Print</button>
-      </td>`;
+      <button class="save-btn" onclick="saveRow(this,'${orderNo}')">Save</button>
+      <button onclick="printRow(this,'${orderNo}')">🧾 Print</button>
+    </td>`;
     tbody += "</tr>";
   });
-
   tbody += "</tbody>";
   tbl.innerHTML = thead + tbody;
 
-  // ✅ pagination (unchanged)
-  // ===== CLASSIC PAGINATION (Prev | 1..N | Next) =====
+  renderPaginationClassic(); // 👈 call classic pager every time
+}
+
+// ===== CLASSIC PAGINATION (Prev | 1..N | Next) =====
 function renderPaginationClassic(){
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
 
-  // clamp currentPage if needed
+  // clamp page range
   if (currentPage > totalPages) currentPage = totalPages;
   if (currentPage < 1) currentPage = 1;
 
-  // info line: "Showing X–Y of Z"
-  const startRow = (total === 0) ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  // info line
+  const startRow = total ? (currentPage - 1) * rowsPerPage + 1 : 0;
   const endRow   = Math.min(total, currentPage * rowsPerPage);
-  document.getElementById("pageInfo").textContent =
-    `Showing ${startRow}–${endRow} of ${total} entries`;
+  const info = document.getElementById("pageInfo");
+  if (info) info.textContent = `Showing ${startRow}–${endRow} of ${total} entries`;
 
-  // buttons
   const box = document.getElementById("pagination");
   if (totalPages <= 1){ box.innerHTML = ""; return; }
 
@@ -313,18 +294,25 @@ function renderPaginationClassic(){
   html += `<button onclick="gotoPage(1)" ${currentPage===1?"disabled":""}>⏮ First</button>`;
   html += `<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Prev</button>`;
 
-  // show ALL page numbers (like your old flow). If your data is huge, you can cap it.
-  const MAX_PAGES_SAFE = 2000; // safety cap; raise if you really need more
-  const pagesToShow = Math.min(totalPages, MAX_PAGES_SAFE);
-  for (let i = 1; i <= pagesToShow; i++){
+  // sliding window (max 7 numbers)
+  const win = 7;
+  let start = Math.max(1, currentPage - Math.floor(win/2));
+  let end = Math.min(totalPages, start + win - 1);
+  if (end - start < win - 1) start = Math.max(1, end - win + 1);
+
+  for (let i=start; i<=end; i++){
     html += `<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
   }
 
   html += `<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
   html += `<button onclick="gotoPage(${totalPages})" ${currentPage===totalPages?"disabled":""}>Last ⏭</button>`;
-
   box.innerHTML = html;
 }
+
+function gotoPage(p){ currentPage = p; renderTable(); }
+function gotoPrev(){ if(currentPage>1){ currentPage--; renderTable(); } }
+function gotoNext(t){ if(currentPage<t){ currentPage++; renderTable(); } }
+
 
 function gotoPage(p){ currentPage = p; renderTable(); }
 function gotoPrev(){ if(currentPage>1){ currentPage--; renderTable(); } }
