@@ -70,7 +70,18 @@
 <div class="pagination" id="pagination" style="margin-top:6px;"></div>
   </main>
 </div>
-
+<!-- Universal Search + Entries per page -->
+<div class="controls" style="justify-content: space-between;">
+  <input type="text" id="searchBar" placeholder="🔍 Search..." style="flex:1; max-width:300px;">
+  <label>Show
+    <select id="entriesSelect">
+      <option value="10">10</option>
+      <option value="25" selected>25</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select> entries
+  </label>
+</div>
 <script src="assets/app.js"></script>
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
