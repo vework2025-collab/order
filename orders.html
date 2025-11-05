@@ -6,13 +6,16 @@
 <link rel="stylesheet" href="assets/style.css">
 <link rel="icon" href="data:,">
 <style>
-  body { font-family: Segoe UI, sans-serif; }
   #dataTable { width:100%; border-collapse:collapse; background:#fff; }
-  #dataTable th, #dataTable td {
-    border:1px solid #ddd; padding:6px 8px; font-size:13px; white-space:nowrap;
-  }
-  #dataTable th { background:#f5f6f7; position:sticky; top:0; }
-  img { width:100px; height:150px; object-fit:cover; border-radius:5px; }
+  #dataTable th, #dataTable td { border:1px solid #ddd; padding:6px 8px; font-size:13px; white-space:nowrap; }
+  #dataTable th { background:#f5f6f7; position: sticky; top: 0; cursor:pointer; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; align-items:center; }
+  .status-checkboxes { display:flex; flex-wrap:wrap; gap:8px; }
+  .pagination { margin-top:10px; }
+  .pagination button { margin:0 2px; padding:5px 10px; border:1px solid #007bff; border-radius:4px; background:#fff; color:#007bff; cursor:pointer; }
+  .pagination button.active { background:#007bff; color:#fff; }
+  .pagination button[disabled]{ opacity:.4; cursor:not-allowed; }
+  img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
 </style>
 </head>
 <body>
@@ -45,83 +48,258 @@
 
   <main class="content">
     <div class="card">
-      <h2>All Orders</h2>
+      <h2>Orders</h2>
+
+      <div class="controls">
+        <label>Order No <input type="text" id="filterOrderNo" placeholder="Enter order no..."></label>
+        <label>Order Date <input type="date" id="filterOrderStart"> to <input type="date" id="filterOrderEnd"></label>
+        <label>Delivery Date <input type="date" id="filterDeliveryStart"> to <input type="date" id="filterDeliveryEnd"></label>
+        <label>Unit <select id="filterUnit"></select></label>
+        <label>Sheet <select id="filterSheet"></select></label>
+        <button class="btn" id="btnApply">Search</button>
+        <button id="btnReset">Reset</button>
+      </div>
+
+      <div class="controls">
+        <label><strong>Status:</strong></label>
+        <div class="status-checkboxes" id="statusCheckboxes"></div>
+      </div>
+
+      <div class="controls" style="justify-content: space-between;">
+        <input type="text" id="searchBar" placeholder="🔍 Search..." />
+        <label>Show
+          <select id="entriesSelect">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select> entries
+        </label>
+      </div>
+
       <table id="dataTable"><tr><td>Loading data...</td></tr></table>
+      <div class="pagination" id="pagination"></div>
     </div>
   </main>
 </div>
 
 <script src="assets/app.js"></script>
 <script>
-const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
+const SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
+const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
 
-const SHEETS = [
-  "Branch Sales Order","Jaipur Sales Order","Jaipur Alterations",
-  "Exhibition Sales Order","Wholesale Order"
-];
+let rows=[], filteredRows=[], headers=[], sortState={index:-1,asc:true}, currentPage=1, rowsPerPage=25;
 
-// ========== Helpers ==========
 function clean(arr){
   return Array.isArray(arr)
     ? arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c)))
     : [];
 }
 
-// ========== Loader ==========
+function toThumb(url){
+  const m = (typeof url==="string") ? url.match(/[-\w]{25,}/) : null;
+  const id = m? m[0] : null;
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w200-h200` : "";
+}
+
 async function loadData(){
   const tbl=document.getElementById("dataTable");
   tbl.innerHTML="<tr><td>Loading data...</td></tr>";
   try{
-    const res=await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
-    if(!res.ok) throw new Error("Network error: "+res.status);
-    const json=await res.json();
-    console.log("✅ Received keys:",Object.keys(json));
+    const res = await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
+    const json = await res.json();
 
-    // flatten all sheets into one array of objects
-    let rows=[];
+    // flatten -> array of objects
+    let out=[];
     SHEETS.forEach(name=>{
-      const data=json[name];
-      if(!Array.isArray(data)||data.length<2) return;
-      const headers=data[0];
-      data.slice(1).forEach(r=>{
+      const d=json[name];
+      if(!Array.isArray(d)||d.length<2) return;
+      const hs = d[0];
+      d.slice(1).forEach(r=>{
         const obj={};
-        headers.forEach((h,i)=>obj[h]=r[i]||"");
-        obj.Sheet=name;
-        rows.push(obj);
+        hs.forEach((h,i)=> obj[h]= (r[i]==null?"":r[i]) );
+        obj["Sheet Name"]=name;
+        out.push(obj);
       });
     });
 
-    if(!rows.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; return; }
+    if(!out.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; return; }
 
-    // if page hash (like #Jaipur Sales Order) exists, filter by sheet
-    if(location.hash){
-      const branch = decodeURIComponent(location.hash.substring(1));
-      rows = rows.filter(r => r.Sheet === branch);
-      console.log("🔍 Filtered for sheet:", branch, rows.length);
-    }
+    rows = out;
+    headers = Object.keys(rows[0]);
 
-    // render table
-    const headers = Object.keys(rows[0]);
-    let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"</tr></thead><tbody>";
-    rows.forEach(r=>{
-      html+="<tr>"+headers.map(h=>{
-        let v=r[h];
-        // small image preview for Drive links
-        if(typeof v==="string" && v.includes("drive.google.com")){
-          const id=(v.match(/[-\\w]{25,}/)||[])[0];
-          if(id) v=`<a href="${v}" target="_blank"><img src="https://drive.google.com/thumbnail?id=${id}&sz=w100-h100"></a>`;
-        }
-        return `<td>${v}</td>`;
-      }).join("")+"</tr>";
-    });
-    html+="</tbody>";
-    tbl.innerHTML=html;
+    populateFilters();
+    // deep-link (supports #<Sheet> or #sheet=&unit=&status=)
+    if (location.hash) applyDeepLink();
+
+    filteredRows = rows.slice();
+    renderTable();
   }catch(e){
     console.error(e);
-    tbl.innerHTML=`<tr><td style="color:red">❌ ${e.message}</td></tr>`;
+    tbl.innerHTML=`<tr><td style="color:#b00020;font-weight:600">❌ ${e.message}</td></tr>`;
   }
 }
+
+function populateFilters(){
+  const unitSet = new Set();
+  const sheetSet = new Set();
+
+  rows.forEach(r=>{
+    if(r["Unit"]) unitSet.add(String(r["Unit"]));
+    if(r["Sheet Name"]) sheetSet.add(String(r["Sheet Name"]));
+  });
+
+  filterUnit.innerHTML = `<option value="">All</option>` + [...unitSet].map(u=>`<option>${u}</option>`).join("");
+  filterSheet.innerHTML = `<option value="">All</option>` + [...sheetSet].map(s=>`<option>${s}</option>`).join("");
+
+  statusCheckboxes.innerHTML = ALL_STATUSES.map(s=>{
+    const label = s || "(blank)";
+    return `<label><input type="checkbox" value="${s}"> ${label}</label>`;
+  }).join("");
+
+  btnApply.onclick = applyFilters;
+  btnReset.onclick = resetFilters;
+  searchBar.oninput = searchTable;
+  entriesSelect.onchange = ()=>{ rowsPerPage=parseInt(entriesSelect.value,10); currentPage=1; renderTable(); };
+}
+
+function applyFilters(){
+  const orderNo = (filterOrderNo.value||"").toLowerCase();
+  const oStart = filterOrderStart.value, oEnd = filterOrderEnd.value;
+  const dStart = filterDeliveryStart.value, dEnd = filterDeliveryEnd.value;
+  const unit = filterUnit.value, sheet = filterSheet.value;
+  const chosenStatuses = [...document.querySelectorAll("#statusCheckboxes input:checked")].map(i=>i.value);
+
+  filteredRows = rows.filter(r=>{
+    const od = new Date(r["Order Date"]||"");
+    const dd = new Date(r["Delivery Date"]||"");
+    const status = (r["Status"]==null?"":String(r["Status"]));
+    return (!orderNo || String(r["Order No"]||"").toLowerCase().includes(orderNo))
+        && (!sheet || r["Sheet Name"]===sheet)
+        && (!unit || r["Unit"]===unit)
+        && (!chosenStatuses.length || chosenStatuses.includes(status))
+        && (!oStart || od>=new Date(oStart))
+        && (!oEnd   || od<=new Date(oEnd+"T23:59:59"))
+        && (!dStart || dd>=new Date(dStart))
+        && (!dEnd   || dd<=new Date(dEnd+"T23:59:59"));
+  });
+
+  currentPage=1;
+  renderTable();
+}
+
+function resetFilters(){
+  document.querySelectorAll(".card .controls input, .card .controls select").forEach(el=>el.value="");
+  document.querySelectorAll("#statusCheckboxes input").forEach(i=>i.checked=false);
+  filteredRows = rows.slice();
+  currentPage=1;
+  renderTable();
+}
+
+function searchTable(){
+  const term = (searchBar.value||"").toLowerCase();
+  filteredRows = rows.filter(r=> Object.values(r).some(v=> String(v||"").toLowerCase().includes(term)) );
+  currentPage=1;
+  renderTable();
+}
+
+// deep-link handler
+function applyDeepLink(){
+  const raw = location.hash.substring(1);
+  resetFilters();
+
+  if (!raw.includes("=")) {
+    // #Branch Name
+    filterSheet.value = decodeURIComponent(raw);
+    applyFilters();
+    return;
+  }
+
+  const p = new URLSearchParams(raw);
+  const sheet = p.get("sheet");
+  const unit = p.get("unit");
+  const status = p.get("status");
+
+  if (sheet) filterSheet.value = decodeURIComponent(sheet);
+  if (unit)  filterUnit.value  = decodeURIComponent(unit);
+  if (status){
+    const target = decodeURIComponent(status);
+    document.querySelectorAll("#statusCheckboxes input").forEach(i=> i.checked = (i.value===target) );
+  }
+  applyFilters();
+}
+
+function renderTable(){
+  const tbl = document.getElementById("dataTable");
+  if(!filteredRows.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; pagination.innerHTML=""; return; }
+
+  // headers row (sortable)
+  let thead = "<thead><tr>" + headers.map((h,i)=>`<th data-idx="${i}">${h}</th>`).join("") + "</tr></thead>";
+
+  // pagination slice
+  const start = (currentPage-1)*rowsPerPage, end = start+rowsPerPage;
+  const page = filteredRows.slice(start,end);
+
+  // body
+  let tbody = "<tbody>";
+  page.forEach(r=>{
+    tbody += "<tr>";
+    headers.forEach(h=>{
+      let v = r[h] == null ? "" : String(r[h]);
+      if ((/image|photo/i).test(h) && v.includes("drive.google.com")){
+        const t = toThumb(v);
+        v = t ? `<a href="${v}" target="_blank"><img src="${t}"></a>` : v;
+      }
+      tbody += `<td>${v}</td>`;
+    });
+    tbody += "</tr>";
+  });
+  tbody += "</tbody>";
+
+  tbl.innerHTML = thead + tbody;
+
+  // sorting events
+  tbl.querySelectorAll("th").forEach(th=>{
+    th.onclick = ()=>{
+      const idx = parseInt(th.dataset.idx,10);
+      sortState.asc = sortState.index===idx ? !sortState.asc : true;
+      sortState.index = idx;
+
+      const key = headers[idx];
+      filteredRows.sort((a,b)=>{
+        const A = String(a[key]??"");
+        const B = String(b[key]??"");
+        const nA = parseFloat(A.replace(/[^0-9.]/g,""));
+        const nB = parseFloat(B.replace(/[^0-9.]/g,""));
+        const cmp = (isNaN(nA)||isNaN(nB)) ? A.localeCompare(B) : (nA-nB);
+        return sortState.asc ? cmp : -cmp;
+      });
+      currentPage=1;
+      renderTable();
+    };
+  });
+
+  // pagination
+  renderPagination();
+}
+
+function renderPagination(){
+  const totalPages = Math.ceil(filteredRows.length/rowsPerPage);
+  const box = document.getElementById("pagination");
+  if (totalPages<=1){ box.innerHTML=""; return; }
+  let html = `<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Prev</button>`;
+  const s = Math.max(1, currentPage-2);
+  const e = Math.min(totalPages, s+4);
+  for(let i=s;i<=e;i++){
+    html += `<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
+  }
+  html += `<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
+  box.innerHTML = html;
+}
+function gotoPage(p){ currentPage=p; renderTable(); }
+function gotoPrev(){ if(currentPage>1){ currentPage--; renderTable(); } }
+function gotoNext(t){ if(currentPage<t){ currentPage++; renderTable(); } }
 
 loadData();
 </script>
