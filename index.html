@@ -4,6 +4,23 @@
 <meta charset="utf-8" />
 <title>Vasansi Enterprise Application — Dashboard</title>
 <link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:,">
+<style>
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:14px; }
+  .kpi { background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .kpi .label{ font-size:12px; color:#666; margin-bottom:6px; }
+  .kpi .value{ font-size:22px; font-weight:700; }
+  .kpi .sub  { font-size:12px; color:#888; margin-top:6px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{ border:1px solid #e0e0e0; padding:4px 8px; border-radius:999px; background:#fff; font-size:12px; }
+  .table { width:100%; border-collapse:collapse; background:#fff; }
+  .table th, .table td { border:1px solid #e3e3e3; padding:6px 8px; font-size:13px; white-space:nowrap; }
+  .table th { background:#f5f6f7; cursor:pointer; }
+  .bar{ height:8px; background:#e9ecef; border-radius:4px; overflow:hidden; min-width:120px; }
+  .bar>span{ display:block; height:100%; background:#007bff; }
+  .clickable { cursor:pointer; color:#007bff; font-weight:600; }
+  .clickable:hover { text-decoration: underline; }
+</style>
 </head>
 <body>
 <div class="app">
@@ -12,7 +29,6 @@
     <div class="user">Hemant Solanki ▼</div>
   </div>
 
-  <!-- Sidebar -->
   <aside class="sidebar">
     <ul class="nav">
       <li><a href="index.html">🏠 <span class="label">Dashboard</span></a></li>
@@ -34,13 +50,12 @@
     </ul>
   </aside>
 
-  <!-- Content -->
   <main class="content">
-    <div class="kpis" id="kpiRow">
+    <div class="kpis">
       <div class="kpi"><div class="label">Total Orders</div><div class="value" id="kpiTotal">–</div><div class="sub" id="kpiRange"></div></div>
-      <div class="kpi"><div class="label">Ready For Delivery</div><div class="value" id="kpiRFD">–</div><div class="sub">status = Ready For Delivery</div></div>
-      <div class="kpi"><div class="label">In Production</div><div class="value" id="kpiInProd">–</div><div class="sub">not Delivered / Cancelled</div></div>
-      <div class="kpi"><div class="label">Delivered</div><div class="value" id="kpiDelivered">–</div><div class="sub">status = Delivered</div></div>
+      <div class="kpi"><div class="label">In Production</div><div class="value" id="kpiInProd">–</div><div class="sub">blank + early statuses</div></div>
+      <div class="kpi"><div class="label">Ready For Delivery</div><div class="value" id="kpiRFD">–</div><div class="sub">Dispatch→Billed group</div></div>
+      <div class="kpi"><div class="label">Delivered</div><div class="value" id="kpiDelivered">–</div><div class="sub">Tracking/Hand/Delivered/Cancelled</div></div>
     </div>
 
     <div class="card">
@@ -56,7 +71,7 @@
     </div>
 
     <div class="card">
-      <h2>Branch-wise Status Count (Sheet Name)</h2>
+      <h2>Branch-wise Status Count</h2>
       <div style="overflow:auto;">
         <table class="table" id="branchTable"></table>
       </div>
@@ -71,210 +86,193 @@
   </main>
 </div>
 
-<script src="assets/app.js"></script>
 <script>
-/* === CONFIG (same as orders) === */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
-const FIXED_SHEETS = [
-  "Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"
-];
-const INCLUDED_COLUMNS = [
-  "Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Unit",
-  "Product Image","Order Form Photo","Remark","Status","Jobber Name"
-];
-const ALL_STATUSES = [
-  "", "Order Received","Dye","Print Process","Print Received","For Work",
-  "From Work Received","Send To Party","Received From Party","Stitching","Finishing",
-  "Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
-  "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"
-];
+const SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
+const INCLUDED = ["Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Unit","Product Image","Order Form Photo","Remark","Status","Jobber Name"];
+const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
+
+const sets = {
+  inProd: ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing"],
+  rfd: ["Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed"],
+  delivered: ["Tracking Updated","Hand Delivery","Delivered","Cancelled"]
+};
 
 let headers=[], rows=[], dashRows=[];
 
-const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
+function clean(arr){
+  return Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
+}
 
 async function loadData(){
-  const res = await fetch(SCRIPT_URL);
-  const data = await res.json();
-  const combined = combineSheetsObject(data);
-  headers = combined[0].map(h=>h||"");
-  rows = clean(combined.slice(1)).sort((a,b)=>new Date(b[0])-new Date(a[0]));
-  dashRows = rows.slice(); // working copy
-  populateQuickFilters();
-  refreshDashboard();
-}
-
-function combineSheetsObject(obj){
-  const out=[INCLUDED_COLUMNS];
-  FIXED_SHEETS.forEach(sheet=>{
-    const sd=obj[sheet]; if(!Array.isArray(sd)||sd.length<2) return;
-    const hs=sd[0];
-    sd.slice(1).forEach(r=>{
-      const mapped=INCLUDED_COLUMNS.map(h=>{
-        const ix=hs.indexOf(h); return ix===-1?"":(r[ix]||"");
+  try{
+    const res=await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
+    const json=await res.json();
+    // flatten
+    let out=[];
+    SHEETS.forEach(name=>{
+      const d=json[name]; if(!Array.isArray(d)||d.length<2) return;
+      const hs=d[0];
+      d.slice(1).forEach(r=>{
+        const obj={};
+        INCLUDED.forEach(h=>{
+          const idx=hs.indexOf(h); obj[h]= idx===-1 ? "" : (r[idx]??"");
+        });
+        obj["Sheet Name"]=name;
+        out.push(obj);
       });
-      const ts=hs.indexOf("Timestamp");
-      mapped[0]=ts>=0?r[ts]:"";
-      mapped[1]=sheet;
-      out.push(mapped);
     });
-  });
-  return out;
+
+    headers = INCLUDED.slice();
+    rows = out.sort((a,b)=>new Date(b["Timestamp"]||0)-new Date(a["Timestamp"]||0));
+    dashRows = rows.slice();
+
+    populateQuickFilters();
+    refreshDashboard();
+  }catch(e){
+    console.error(e);
+    document.getElementById("branchTable").innerHTML = `<tr><td style="color:#b00020;font-weight:600">❌ ${e.message}</td></tr>`;
+  }
 }
 
-function seedCounts(){ return Object.fromEntries(ALL_STATUSES.map(s=>[s,0])); }
+function populateQuickFilters(){
+  const sheets=[...new Set(rows.map(r=>r["Sheet Name"]).filter(Boolean))];
+  const units=[...new Set(rows.map(r=>r["Unit"]).filter(Boolean))];
+  sheetFilter.innerHTML = `<option value="">All</option>` + sheets.map(s=>`<option>${s}</option>`).join("");
+  unitFilter.innerHTML  = `<option value="">All</option>` + units.map(u=>`<option>${u}</option>`).join("");
 
-function buildCounts(data, idxKey){
-  const idxStatus=headers.indexOf("Status");
-  const map={};
+  applyDash.onclick = ()=>{
+    const s=sheetFilter.value, u=unitFilter.value, ds=dStart.value, de=dEnd.value;
+    dashRows = rows.filter(r=>{
+      const okS = !s || r["Sheet Name"]===s;
+      const okU = !u || r["Unit"]===u;
+      const d = new Date(r["Order Date"]||"");
+      const okD1 = !ds || d>=new Date(ds);
+      const okD2 = !de || d<=new Date(de+"T23:59:59");
+      return okS && okU && okD1 && okD2;
+    });
+    refreshDashboard();
+  };
+  resetDash.onclick = ()=>{
+    dStart.value=""; dEnd.value=""; sheetFilter.value=""; unitFilter.value="";
+    dashRows = rows.slice();
+    refreshDashboard();
+  };
+}
+
+function stVal(r){ return (r["Status"]||"").trim(); }
+
+function refreshDashboard(){
+  const total = dashRows.length;
+  const inProd = dashRows.filter(r=>sets.inProd.includes(stVal(r))).length;
+  const rfd    = dashRows.filter(r=>sets.rfd.includes(stVal(r))).length;
+  const delivered = dashRows.filter(r=>sets.delivered.includes(stVal(r))).length;
+
+  kpiTotal.textContent = total;
+  kpiInProd.textContent = inProd;
+  kpiRFD.textContent = rfd;
+  kpiDelivered.textContent = delivered;
+
+  const ods = dashRows.map(r=>new Date(r["Order Date"]||"")).filter(d=>!isNaN(d));
+  kpiRange.textContent = ods.length
+    ? new Date(Math.min(...ods)).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) + " – " +
+      new Date(Math.max(...ods)).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+    : "";
+
+  const counts = dashRows.reduce((m,r)=>{ const s=stVal(r); m[s]=(m[s]||0)+1; return m; },{});
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  topStatuses.innerHTML = top.map(([s,c])=>`<span class="chip">${s||"(blank)"} — ${c}</span>`).join("");
+
+  const bySheet = groupCounts(dashRows, "Sheet Name");
+  const byUnit  = groupCounts(dashRows, "Unit");
+  renderCountTable("branchTable","Branch", bySheet);
+  renderCountTable("unitTable","Unit", byUnit);
+
+  // enable sorting on both tables
+  enableTableSorting("branchTable");
+  enableTableSorting("unitTable");
+}
+
+function groupCounts(data, key){
+  const map = {};
   data.forEach(r=>{
-    const key=r[idxKey]||"(unknown)";
-    const st=r[idxStatus]||"";
-    if(!map[key]) map[key]=seedCounts();
-    map[key][st]=(map[key][st]||0)+1;
+    const k = r[key] || "(unknown)";
+    const s = stVal(r);
+    if(!map[k]) map[k] = Object.fromEntries(ALL_STATUSES.map(x=>[x,0]));
+    map[k][s] = (map[k][s]||0) + 1;
   });
   return map;
 }
 
 function renderCountTable(tableId, firstCol, countsObj){
   const tbl=document.getElementById(tableId);
-  let thead=`<thead><tr><th>${firstCol}</th>`;
-  ALL_STATUSES.forEach(s=>thead+=`<th>${s||"(blank)"}</th>`); thead+=`<th>Total</th></tr></thead>`;
-  let tbody="<tbody>";
-  const entries=Object.entries(countsObj);
-  const totals=entries.map(([_,o])=>Object.values(o).reduce((a,b)=>a+b,0));
-  const maxTotal=Math.max(1,...totals);
+  let thead = `<thead><tr><th>${firstCol}</th>`;
+  ALL_STATUSES.forEach(s=> thead += `<th>${s||"(blank)"}</th>`);
+  thead += `<th>Total</th></tr></thead>`;
+
+  const entries = Object.entries(countsObj);
+  const totals = entries.map(([_,o])=>Object.values(o).reduce((a,b)=>a+b,0));
+  const maxT = Math.max(1, ...totals);
+
+  let tbody = "<tbody>";
   entries.forEach(([k,o])=>{
-    const total=Object.values(o).reduce((a,b)=>a+b,0);
-    tbody+=`<tr><td>${k}</td>`;
-    ALL_STATUSES.forEach(s=>
-      const val = o[s] || 0;
-const encodedStatus = encodeURIComponent(s);
-const encodedKey = encodeURIComponent(k);
-tbody += `<td class="clickable" 
-  onclick="openOrders('${firstCol}','${encodedKey}','${encodedStatus}')">${val}</td>`;
-);
-    const pct=Math.round(total/maxTotal*100);
-    tbody+=`<td>${total}<div class="bar"><span style="width:${pct}%"></span></div></td></tr>`;
-  });
-  // grand total
-  const grand=seedCounts(); let gTot=0;
-  entries.forEach(([_,o])=>{ ALL_STATUSES.forEach(s=>grand[s]+=o[s]||0); gTot+=Object.values(o).reduce((a,b)=>a+b,0); });
-  tbody+=`<tr><th>Total</th>`; ALL_STATUSES.forEach(s=>tbody+=`<th>${grand[s]}</th>`); tbody+=`<th>${gTot}</th></tr>`;
-  tbody+="</tbody>";
-  tbl.innerHTML=thead+tbody;
-}
-function openOrders(type, key, status){
-  let hash = "";
-  if (type === "Branch") hash = `#sheet=${key}&status=${status}`;
-  else if (type === "Unit") hash = `#unit=${key}&status=${status}`;
-  window.open(`orders.html${hash}`, "_blank"); // open in new tab
-}
-
-function refreshDashboard(){
-  // KPI calculations
-  const idxStatus=headers.indexOf("Status");
-  const idxOrderDate=headers.indexOf("Order Date");
-  const total=dashRows.length;
- const stVal = r => (r[idxStatus]||"").trim();
-const sets = {
-  inProd: ["","Order Received","Dye","Print Process","Print Received","For Work",
-           "From Work Received","Send To Party","Received From Party","Stitching","Finishing"],
-  rfd: ["Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
-        "Ready For Delivery","Billed"],
-  delivered: ["Tracking Updated","Hand Delivery","Delivered","Cancelled"]
-};
-const inProd = dashRows.filter(r => sets.inProd.includes(stVal(r))).length;
-const rfd    = dashRows.filter(r => sets.rfd.includes(stVal(r))).length;
-const delivered = dashRows.filter(r => sets.delivered.includes(stVal(r))).length;
-
-
-  document.getElementById("kpiTotal").textContent=total;
-  document.getElementById("kpiDelivered").textContent=delivered;
-  document.getElementById("kpiRFD").textContent=rfd;
-  document.getElementById("kpiInProd").textContent=inProd;
-
-  // show current date span (min..max)
-  const dates = dashRows.map(r=>new Date(r[idxOrderDate]||"")).filter(d=>!isNaN(d));
-  if(dates.length){
-    const min = new Date(Math.min.apply(null, dates));
-    const max = new Date(Math.max.apply(null, dates));
-    document.getElementById("kpiRange").textContent =
-      min.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) + " – " +
-      max.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
-  } else {
-    document.getElementById("kpiRange").textContent = "";
-  }
-
-  // top statuses chips
-  const counts = dashRows.reduce((m,r)=>{
-    const st=r[idxStatus]||""; m[st]=(m[st]||0)+1; return m;
-  },{});
-  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  document.getElementById("topStatuses").innerHTML =
-    top.map(([s,c])=>`<span class="chip">${(s||"(blank)")} — ${c}</span>`).join("");
-
-  // tables
-  const idxSheet=headers.indexOf("Sheet Name");
-  const idxUnit=headers.indexOf("Unit");
-  renderCountTable("branchTable","Branch", buildCounts(dashRows, idxSheet));
-  renderCountTable("unitTable","Unit", buildCounts(dashRows, idxUnit));
-}
-
-/* Quick filters (dashboard-only) */
-function populateQuickFilters(){
-  const idxSheet=headers.indexOf("Sheet Name");
-  const idxUnit=headers.indexOf("Unit");
-  const sheets=[...new Set(rows.map(r=>r[idxSheet]).filter(Boolean))];
-  const units=[...new Set(rows.map(r=>r[idxUnit]).filter(Boolean))];
-
-  sheetFilter.innerHTML = `<option value="">All</option>` + sheets.map(s=>`<option>${s}</option>`).join("");
-  unitFilter.innerHTML  = `<option value="">All</option>` + units.map(u=>`<option>${u}</option>`).join("");
-
-  applyDash.addEventListener("click", ()=>{
-    const s=sheetFilter.value, u=unitFilter.value, ds=dStart.value, de=dEnd.value;
-    const idxOrderDate=headers.indexOf("Order Date");
-    dashRows = rows.filter(r=>{
-      const okS = !s || r[idxSheet]===s;
-      const okU = !u || r[idxUnit]===u;
-      const d = new Date(r[idxOrderDate]||"");
-      const okD1 = !ds || d>=new Date(ds);
-      const okD2 = !de || d<=new Date(de+"T23:59:59");
-      return okS && okU && okD1 && okD2;
+    const t = Object.values(o).reduce((a,b)=>a+b,0);
+    tbody += `<tr><td>${k}</td>`;
+    ALL_STATUSES.forEach(s=>{
+      const val = o[s]||0;
+      const eKey = encodeURIComponent(k), eStat = encodeURIComponent(s);
+      const click = firstCol==="Branch"
+        ? `openOrders('sheet','${eKey}','${eStat}')`
+        : `openOrders('unit','${eKey}','${eStat}')`;
+      tbody += `<td class="clickable" onclick="${click}">${val}</td>`;
     });
-    refreshDashboard();
+    const pct = Math.round(t/maxT*100);
+    tbody += `<td>${t}<div class="bar"><span style="width:${pct}%"></span></div></td></tr>`;
   });
 
-  resetDash.addEventListener("click", ()=>{
-    dStart.value=""; dEnd.value=""; sheetFilter.value=""; unitFilter.value="";
-    dashRows = rows.slice(); refreshDashboard();
+  // grand total
+  const grand = Object.fromEntries(ALL_STATUSES.map(s=>[s,0])); let gTot=0;
+  entries.forEach(([_,o])=>{ ALL_STATUSES.forEach(s=> grand[s]+=o[s]||0); gTot += Object.values(o).reduce((a,b)=>a+b,0); });
+  tbody += `<tr><th>Total</th>${ALL_STATUSES.map(s=>`<th>${grand[s]}</th>`).join("")}<th>${gTot}</th></tr>`;
+  tbody += "</tbody>";
+
+  tbl.innerHTML = thead + tbody;
+}
+
+function openOrders(kind, key, status){
+  const p = new URLSearchParams();
+  if (kind==="sheet") p.set("sheet", key);
+  if (kind==="unit")  p.set("unit", key);
+  p.set("status", status);
+  window.open(`orders.html#${p.toString()}`, "_blank");
+}
+
+/* generic sort for dashboard tables */
+function enableTableSorting(tableId){
+  const tbl = document.getElementById(tableId);
+  tbl.querySelectorAll("th").forEach((th,idx)=>{
+    th.onclick = ()=>{
+      // skip first col label when needed? here we sort by clicked col anyway
+      const tbody = tbl.querySelector("tbody");
+      const rows = [...tbody.querySelectorAll("tr")];
+      const asc = !th.classList.contains("sort-asc");
+      tbl.querySelectorAll("th").forEach(h=>h.classList.remove("sort-asc","sort-desc"));
+      th.classList.add(asc?"sort-asc":"sort-desc");
+
+      rows.sort((a,b)=>{
+        const A = a.children[idx]?.innerText.trim() ?? "";
+        const B = b.children[idx]?.innerText.trim() ?? "";
+        const nA = parseFloat(A.replace(/[^0-9.]/g,""));
+        const nB = parseFloat(B.replace(/[^0-9.]/g,""));
+        const cmp = (isNaN(nA)||isNaN(nB)) ? A.localeCompare(B) : (nA-nB);
+        return asc ? cmp : -cmp;
+      });
+      rows.forEach(r=>tbody.appendChild(r));
+    };
   });
 }
 
 loadData();
-  // ===== Simple Table Sorting =====
-document.addEventListener("click", e=>{
-  const th = e.target.closest("th");
-  if (!th || !th.parentNode.parentNode.parentNode.id.includes("Table")) return;
-  const table = th.closest("table");
-  const tbody = table.querySelector("tbody");
-  const index = [...th.parentNode.children].indexOf(th);
-  const asc = !th.classList.contains("sort-asc");
-  [...table.querySelectorAll("th")].forEach(h=>h.classList.remove("sort-asc","sort-desc"));
-  th.classList.add(asc?"sort-asc":"sort-desc");
-
-  const rows = [...tbody.querySelectorAll("tr")];
-  rows.sort((a,b)=>{
-    const A = a.children[index].innerText.trim();
-    const B = b.children[index].innerText.trim();
-    const nA = parseFloat(A.replace(/[^0-9.]/g,"")), nB = parseFloat(B.replace(/[^0-9.]/g,""));
-    return (isNaN(nA)||isNaN(nB)?A.localeCompare(B):nA-nB)*(asc?1:-1);
-  });
-  rows.forEach(r=>tbody.appendChild(r));
-});
-
 </script>
 </body>
 </html>
-
-
