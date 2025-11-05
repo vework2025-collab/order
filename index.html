@@ -147,7 +147,13 @@ function renderCountTable(tableId, firstCol, countsObj){
   entries.forEach(([k,o])=>{
     const total=Object.values(o).reduce((a,b)=>a+b,0);
     tbody+=`<tr><td>${k}</td>`;
-    ALL_STATUSES.forEach(s=>tbody+=`<td>${o[s]||0}</td>`);
+    ALL_STATUSES.forEach(s=>
+      const val = o[s] || 0;
+const encodedStatus = encodeURIComponent(s);
+const encodedKey = encodeURIComponent(k);
+tbody += `<td class="clickable" 
+  onclick="openOrders('${firstCol}','${encodedKey}','${encodedStatus}')">${val}</td>`;
+);
     const pct=Math.round(total/maxTotal*100);
     tbody+=`<td>${total}<div class="bar"><span style="width:${pct}%"></span></div></td></tr>`;
   });
@@ -157,6 +163,12 @@ function renderCountTable(tableId, firstCol, countsObj){
   tbody+=`<tr><th>Total</th>`; ALL_STATUSES.forEach(s=>tbody+=`<th>${grand[s]}</th>`); tbody+=`<th>${gTot}</th></tr>`;
   tbody+="</tbody>";
   tbl.innerHTML=thead+tbody;
+}
+function openOrders(type, key, status){
+  let hash = "";
+  if (type === "Branch") hash = `#sheet=${key}&status=${status}`;
+  else if (type === "Unit") hash = `#unit=${key}&status=${status}`;
+  window.open(`orders.html${hash}`, "_blank"); // open in new tab
 }
 
 function refreshDashboard(){
@@ -234,6 +246,28 @@ function populateQuickFilters(){
 }
 
 loadData();
+  // ===== Simple Table Sorting =====
+document.addEventListener("click", e=>{
+  const th = e.target.closest("th");
+  if (!th || !th.parentNode.parentNode.parentNode.id.includes("Table")) return;
+  const table = th.closest("table");
+  const tbody = table.querySelector("tbody");
+  const index = [...th.parentNode.children].indexOf(th);
+  const asc = !th.classList.contains("sort-asc");
+  [...table.querySelectorAll("th")].forEach(h=>h.classList.remove("sort-asc","sort-desc"));
+  th.classList.add(asc?"sort-asc":"sort-desc");
+
+  const rows = [...tbody.querySelectorAll("tr")];
+  rows.sort((a,b)=>{
+    const A = a.children[index].innerText.trim();
+    const B = b.children[index].innerText.trim();
+    const nA = parseFloat(A.replace(/[^0-9.]/g,"")), nB = parseFloat(B.replace(/[^0-9.]/g,""));
+    return (isNaN(nA)||isNaN(nB)?A.localeCompare(B):nA-nB)*(asc?1:-1);
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+});
+
 </script>
 </body>
 </html>
+
