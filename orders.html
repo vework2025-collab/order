@@ -107,12 +107,23 @@ async function loadData(){
   rows.sort((a,b)=>new Date(b[0])-new Date(a[0])); filteredRows=rows;
   populateFilters(); renderTable();
   // Hash deep link for sheet filter
- if (location.hash){
-  const sheet = decodeURIComponent(location.hash.substring(1));
-  resetFilters(); // clear all previous searches first
-  document.getElementById("filterSheet").value = sheet;
+if (location.hash){
+  resetFilters();
+  const params = new URLSearchParams(location.hash.substring(1));
+  const sheet = params.get("sheet");
+  const unit = params.get("unit");
+  const status = params.get("status");
+  if (sheet) document.getElementById("filterSheet").value = decodeURIComponent(sheet);
+  if (unit) document.getElementById("filterUnit").value = decodeURIComponent(unit);
+  if (status){
+    const decoded = decodeURIComponent(status);
+    document.querySelectorAll("#statusCheckboxes input").forEach(i=>{
+      i.checked = i.value === decoded;
+    });
+  }
   applyFilters();
 }
+
 
 function combineSheetsObject(obj){
   const out=[INCLUDED_COLUMNS];
