@@ -1,211 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Vasansi Jaipur Order Dashboard</title>
-<style>
-  body { font-family: "Segoe UI", sans-serif; background: #f7f8fa; padding: 20px; }
-  h1 { text-align: center; margin-bottom: 15px; }
-
-  /* top nav */
-  .topnav { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
-  .topnav button {
-    padding: 8px 14px; border: 1px solid #007bff; border-radius: 6px;
-    background: white; color: #007bff; cursor: pointer;
-  }
-  .topnav button.active { background: #007bff; color: white; }
-
-  table { width: 100%; border-collapse: collapse; background: white; }
-  th, td {
-    border: 1px solid #ddd;
-    padding: 6px 8px;
-    text-align: left;
-    font-size: 13px;
-    vertical-align: center;
-    white-space: nowrap;
-  }
-  th { background: #f2f2f2; position: sticky; top: 0; z-index: 2; cursor: pointer; }
-  th.sort-asc::after { content: " ▲"; }
-  th.sort-desc::after { content: " ▼"; }
-
-  img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
-
-  .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-bottom: 15px; }
-  select, input, button { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
-  button { background: #007bff; color: white; cursor: pointer; border: none; }
-  button:hover { background: #0056b3; }
-  #searchBar { width: 260px; }
-
-  .save-btn { background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; border: none; cursor: pointer; }
-  .save-btn:hover { background: #218838; }
-
-  .remark-cell { white-space: normal; max-width: 400px; min-width: 150px; }
-
-  .pagination { text-align: center; margin-top: 10px; }
-  .pagination button {
-    margin: 0 2px;
-    padding: 5px 10px;
-    border: 1px solid #007bff;
-    border-radius: 4px;
-    background: white;
-    color: #007bff;
-    cursor: pointer;
-  }
-  .pagination button.active { background: #007bff; color: white; }
-  .pagination button[disabled] { opacity: 0.4; cursor: not-allowed; }
-
-  #entriesSelect { border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; margin: 0 4px; }
-
-  .status-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 1010px; margin: 0 auto; }
-  .status-checkboxes label { font-size: 15px; display: flex; align-items: center; gap: 4px; }
-
-  /* sections */
-  .view { display: none; }
-  .view.active { display: block; }
-  .subheading { font-weight: 600; margin: 12px 0 6px; }
-
-  /* simple bar indicator for totals in dashboard */
-  .bar {
-    height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; min-width: 120px;
-  }
-  .bar > span { display: block; height: 100%; background: #007bff; }
-</style>
+<meta charset="utf-8" />
+<title>Vasansi Enterprise Application — Dashboard</title>
+<link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app">
+  <div class="topbar">
+    <div class="title">Vasansi Enterprise Application</div>
+    <div class="user">Hemant Solanki ▼</div>
+  </div>
 
-<h1>💻 Vasansi Jaipur Order Dashboard</h1>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <ul class="nav">
+      <li><a href="index.html">🏠 <span class="label">Dashboard</span></a></li>
+      <li><a href="dispatch.html">📦 <span class="label">Dispatch</span></a></li>
+      <li><a href="jobwork.html">🧵 <span class="label">Job Work</span></a></li>
+      <li class="section-title">Order</li>
+      <li>
+        <a href="orders.html">📋 <span class="label">Orders</span></a>
+        <ul class="submenu">
+          <li><a href="orders.html#Branch%20Sales%20Order">Branch Sales Order</a></li>
+          <li><a href="orders.html#Jaipur%20Sales%20Order">Jaipur Sales Order</a></li>
+          <li><a href="orders.html#Exhibition%20Sales%20Order">Exhibition Sales Order</a></li>
+          <li><a href="orders.html#Wholesale%20Order">Wholesale Order</a></li>
+        </ul>
+      </li>
+      <li><a href="production.html">🏭 <span class="label">Production</span></a></li>
+      <li><a href="reports.html">📑 <span class="label">Reports</span></a></li>
+    </ul>
+  </aside>
 
-<!-- top menu -->
-<div class="topnav">
-  <button id="btnDash" class="active" onclick="showView('dashboardView')">📊 Dashboard</button>
-  <button id="btnOrders" onclick="showView('ordersView')">📋 Orders</button>
+  <!-- Content -->
+  <main class="content">
+    <div class="card">
+      <h2>Dashboard</h2>
+      <div class="controls">
+        <label><input type="checkbox" id="useFiltered"> Use current filters (from Orders)</label>
+        <button class="btn" id="refreshBtn">Refresh</button>
+      </div>
+      <small>Counts are computed from the live Google Sheet data.</small>
+    </div>
+
+    <div class="card">
+      <h2>Branch-wise Status Count (Sheet Name)</h2>
+      <div style="overflow:auto;">
+        <table class="table" id="branchTable"></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Unit-wise Status Count</h2>
+      <div style="overflow:auto;">
+        <table class="table" id="unitTable"></table>
+      </div>
+    </div>
+  </main>
 </div>
 
-<!-- DASHBOARD VIEW -->
-<div id="dashboardView" class="view active">
-  <div class="controls" style="gap:12px;">
-    <label style="display:flex;align-items:center;gap:6px;">
-      <input type="checkbox" id="dashUseFiltered" onchange="renderDashboard()"> Use current filters
-    </label>
-    <button onclick="renderDashboard()">Refresh dashboard</button>
-  </div>
-
-  <div class="subheading">Branch-wise Status Count (Sheet Name)</div>
-  <div style="overflow:auto;">
-    <table id="branchTable"></table>
-  </div>
-
-  <div class="subheading">Unit-wise Status Count</div>
-  <div style="overflow:auto;">
-    <table id="unitTable"></table>
-  </div>
-</div>
-
-<!-- ORDERS VIEW (your existing UI, unchanged) -->
-<div id="ordersView" class="view">
-  <!-- Filters -->
-  <div class="controls">
-    <label>Order No: <input type="text" id="filterOrderNo" placeholder="Enter order no..."></label>
-    <label>Order Date: <input type="date" id="filterOrderStart"> to <input type="date" id="filterOrderEnd"></label>
-    <label>Delivery Date: <input type="date" id="filterDeliveryStart"> to <input type="date" id="filterDeliveryEnd"></label>
-    <label>Unit: <select id="filterUnit"></select></label>
-    <label>Sheet Name: <select id="filterSheet"></select></label>
-  </div>
-
-  <!-- Multi-status Filter -->
-  <div class="controls">
-    <label><strong>Status:</strong></label>
-    <div class="status-checkboxes" id="statusCheckboxes"></div>
-    <button onclick="applyFilters()">Apply</button>
-    <button onclick="resetFilters()">Reset</button>
-  </div>
-
-  <!-- Search + Show Entries -->
-  <div class="controls" style="justify-content: space-between; align-items: center;">
-    <input type="text" id="searchBar" placeholder="🔍 Search..." oninput="searchTable()">
-    <label>Show 
-      <select id="entriesSelect" onchange="changeEntries()">
-        <option value="10">10</option>
-        <option value="25" selected>25</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </select> entries
-    </label>
-  </div>
-
-  <table id="dataTable"></table>
-  <div class="pagination" id="pagination"></div>
-</div>
-
+<script src="assets/app.js"></script>
 <script>
-/* ===== CONFIG ===== */
+/* === CONFIG (same endpoint you already use) === */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
 const FIXED_SHEETS = [
-  "Branch Sales Order", "Jaipur Sales Order", "Jaipur Alterations",
-  "Exhibition Sales Order", "Wholesale Order"
+  "Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"
 ];
 const INCLUDED_COLUMNS = [
-  "Timestamp","Sheet Name","Order No",
-  "Order Date","Delivery Date","Item","Design No","Unit",
+  "Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Unit",
   "Product Image","Order Form Photo","Remark","Status","Jobber Name"
 ];
-
-let headers=[], rows=[], filteredRows=[], currentSort={index:null,dir:-1};
-let currentPage=1, rowsPerPage=25;
-
-const safeLower = v => (v==null?"":String(v).toLowerCase());
-const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
-
 const ALL_STATUSES = [
-  "", // blank first
-  "Order Received","Dye","Print Process","Print Received","For Work",
+  "", "Order Received","Dye","Print Process","Print Received","For Work",
   "From Work Received","Send To Party","Received From Party","Stitching","Finishing",
   "Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
   "Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"
 ];
 
-function formatDateTime(val) {
-  if (!val) return "";
-  const d = new Date(val);
-  return isNaN(d)
-    ? val
-    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
+let headers=[], rows=[];
 
-function toThumb(url){
-  if(!url||typeof url!=="string")return"";
-  const idMatch=url.match(/[-\w]{25,}/);
-  const id=idMatch?idMatch[0]:null;
-  return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:"";
-}
+const clean = arr => Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
 
-/* ===== VIEW SWITCHER ===== */
-function showView(id){
-  document.querySelectorAll('.topnav button').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  if(id==='dashboardView'){ document.getElementById('btnDash').classList.add('active'); renderDashboard(); }
-  else { document.getElementById('btnOrders').classList.add('active'); }
-}
-
-/* ===== LOAD DATA ===== */
 async function loadData(){
-  const tbl = document.getElementById("dataTable");
-  tbl.innerHTML="<tr><td>Loading data...</td></tr>";
-  try{
-    const res=await fetch(SCRIPT_URL);
-    const data=await res.json();
-    const combined=combineSheetsObject(data);
-    headers=combined[0].map(h=>h||"");
-    rows=clean(combined.slice(1));
-    rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
-    filteredRows=rows;
-    populateFilters();
-    renderTable();
-    renderDashboard();
-  }catch(e){
-    tbl.innerHTML=`<tr><td>❌ ${e.message}</td></tr>`;
-  }
+  const res = await fetch(SCRIPT_URL);
+  const data = await res.json();
+  const combined = combineSheetsObject(data);
+  headers = combined[0].map(h=>h||"");
+  rows = clean(combined.slice(1));
+  rows.sort((a,b)=>new Date(b[0])-new Date(a[0]));
 }
 
 function combineSheetsObject(obj){
@@ -213,14 +96,12 @@ function combineSheetsObject(obj){
   FIXED_SHEETS.forEach(sheet=>{
     const sheetData=obj[sheet];
     if(!Array.isArray(sheetData)||sheetData.length<2)return;
-    const headers=sheetData[0];
+    const hs=sheetData[0];
     sheetData.slice(1).forEach(r=>{
-      if(!Array.isArray(r))return;
       const mapped=INCLUDED_COLUMNS.map(h=>{
-        const idx=headers.indexOf(h);
-        return idx===-1?"":r[idx]||"";
+        const idx=hs.indexOf(h); return idx===-1?"":(r[idx]||"");
       });
-      const tsIdx=headers.indexOf("Timestamp");
+      const tsIdx=hs.indexOf("Timestamp");
       mapped[0]=tsIdx>=0?r[tsIdx]:"";
       mapped[1]=sheet;
       out.push(mapped);
@@ -229,253 +110,57 @@ function combineSheetsObject(obj){
   return out;
 }
 
-/* ===== FILTER UI (Orders view) ===== */
-function populateFilters() {
-  const units = new Set();
-  const sheetNames = new Set();
+function seedCounts(){ return Object.fromEntries(ALL_STATUSES.map(s=>[s,0])); }
 
-  const uIdx = headers.indexOf("Unit");
-  const sIdx = headers.indexOf("Sheet Name");
-
-  rows.forEach(r => {
-    if (r[uIdx]) units.add(r[uIdx]);
-    if (r[sIdx]) sheetNames.add(r[sIdx]);
-  });
-
-  document.getElementById("filterUnit").innerHTML =
-    `<option value="">All</option>` + [...units].map(u => `<option>${u}</option>`).join("");
-
-  document.getElementById("filterSheet").innerHTML =
-    `<option value="">All</option>` + [...sheetNames].map(n => `<option>${n}</option>`).join("");
-
-  document.getElementById("statusCheckboxes").innerHTML =
-    ALL_STATUSES.map(s => {
-      const label = s || "(blank)";
-      return `<label><input type="checkbox" value="${s}"> ${label}</label>`;
-    }).join("");
-}
-
-function applyFilters(){
-  const orderNo=safeLower(document.getElementById("filterOrderNo").value);
-  const oStart=document.getElementById("filterOrderStart").value,oEnd=document.getElementById("filterOrderEnd").value;
-  const dStart=document.getElementById("filterDeliveryStart").value,dEnd=document.getElementById("filterDeliveryEnd").value;
-  const unit=document.getElementById("filterUnit").value;
-  const sheetName = document.getElementById("filterSheet").value;
-  const selStatuses=[...document.querySelectorAll(".status-checkboxes input:checked")].map(i=>i.value);
-  const iO=headers.indexOf("Order No"),iOD=headers.indexOf("Order Date"),iDD=headers.indexOf("Delivery Date"),iU=headers.indexOf("Unit"),iS=headers.indexOf("Status");
-  filteredRows=rows.filter(r=>{
-    const od=new Date(r[iOD]||""),dd=new Date(r[iDD]||"");
-    return(!orderNo||safeLower(r[iO]).includes(orderNo))&&(!sheetName || r[headers.indexOf("Sheet Name")] === sheetName) &&
-    (!unit||r[iU]===unit)&&(!selStatuses.length||selStatuses.includes(r[iS]))&&(!oStart||od>=new Date(oStart))&&(!oEnd||od<=new Date(oEnd+"T23:59:59"))&&(!dStart||dd>=new Date(dStart))&&(!dEnd||dd<=new Date(dEnd+"T23:59:59"));
-  });
-  currentPage=1;renderTable();
-  // If dashboard is using filtered, refresh it
-  if(document.getElementById('dashUseFiltered').checked){ renderDashboard(); }
-}
-
-function resetFilters(){
-  document.querySelectorAll("input,select").forEach(e=>e.value="");
-  document.querySelectorAll(".status-checkboxes input").forEach(i=>i.checked=false);
-  filteredRows=rows;currentPage=1;renderTable();
-  if(document.getElementById('dashUseFiltered').checked){ renderDashboard(); }
-}
-
-/* ===== ORDERS TABLE RENDER ===== */
-function renderTable(){
-  const tbl=document.getElementById("dataTable");
-  if(!filteredRows.length){tbl.innerHTML="<tr><td>No data found</td></tr>";document.getElementById("pagination").innerHTML="";return;}
-  const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage,page=filteredRows.slice(start,end);
-  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
-
-  page.forEach(r=>{
-    html+="<tr>";
-    headers.forEach((h,i)=>{
-      let hClean = h.trim();
-      let tdClass = hClean === 'Order No' ? ' class="order-no"' : '';
-      let val=r[i]||"",hLow=safeLower(h);
-      if(hLow.includes("timestamp"))val=formatDateTime(val);
-      else if(hLow.includes("date"))val=formatDateTime(val);
-      else if((hLow.includes("image")||hLow.includes("photo"))&&val.includes("drive.google.com")){
-        const t=toThumb(val);
-        val=t?`<a href="${val}" target="_blank"><img src="${t}"></a>`:val;
-      }else if(h==="Status"){
-        const sheetStatus=(r[i]||"").trim().toLowerCase();
-        const allStatuses=[...ALL_STATUSES];
-        val="<select>"+allStatuses.map(s=>{
-          const sel=s.trim().toLowerCase()===sheetStatus?"selected":"";
-          const label=s||"(blank)";
-          return `<option ${sel} value="${s}">${label}</option>`;
-        }).join("")+"</select>";
-      }else if(h==="Remark")val=`<div class='remark-cell'>${val}</div>`;
-      html+=`<td${tdClass}>${val}</td>`;
-    });
-    html+=`
-      <td>
-        <button class='save-btn' onclick="saveRow(this,'${r[1]}')">Save</button>
-        <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf("Order No")]}')">🧾 Print</button>
-      </td>
-    </tr>`;
-  });
-
-  tbl.innerHTML=html+"</tbody>";
-  renderPagination();
-}
-
-function renderPagination(){
-  const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
-  const pg=document.getElementById("pagination");
-  if(totalPages<=1){pg.innerHTML="";return;}
-  let html=`<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Previous</button>`;
-  const startPage=Math.max(1,currentPage-2);
-  const endPage=Math.min(totalPages,startPage+4);
-  for(let i=startPage;i<=endPage;i++){
-    html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
-  }
-  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
-  pg.innerHTML=html;
-}
-
-function gotoPage(p){currentPage=p;renderTable();}
-function gotoPrev(){if(currentPage>1){currentPage--;renderTable();}}
-function gotoNext(total){if(currentPage<total){currentPage++;renderTable();}}
-function changeEntries(){rowsPerPage=parseInt(document.getElementById("entriesSelect").value);currentPage=1;renderTable();}
-
-function searchTable(){
-  const term=safeLower(document.getElementById("searchBar").value);
-  filteredRows=rows.filter(r=>r.some(c=>safeLower(c).includes(term)));
-  currentPage=1;renderTable();
-}
-
-/* ===== SAVE ===== */
-async function saveRow(btn,sheet){
-  const tr=btn.closest("tr"),tds=[...tr.children];
-  const orderCell = tr.querySelector("td.order-no");
-  let orderNo = orderCell ? orderCell.innerText.trim() : "";
-  if (!orderNo) {
-    const iO = headers.findIndex(h =>
-      h.replace(/\./g, "").trim().toLowerCase().includes("order no"));
-    if (iO >= 0) {
-      orderNo = tds[iO]?.innerText?.trim() || "";
-    }
-  }
-  console.log("🧾 Extracted Order No:", orderNo);
-  const sel=tr.querySelector("select"),rem=tr.querySelector(".remark-cell");
-  const status=sel?sel.value:"",remark=rem?rem.innerText.trim():"";
-  if(!orderNo)return alert("❌ Missing Order No");
-  try{
-    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
-    const j=await res.json();
-    if(j.success)alert("✅ Updated successfully");else throw new Error(j.error||"Failed");
-  }catch(e){alert("❌ "+e.message);}
-}
-
-/* ===== PRINT ===== */
-async function generateOrderPrint(sheetName, orderNo) {
-  if (!confirm("Generate Order Print for " + orderNo + "?")) return;
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "print", sheetName, orderNo })
-    });
-    const j = await res.json();
-    if (j.success && j.pdf) {
-      const pdfWindow = window.open("");
-      pdfWindow.document.write(
-        `<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`
-      );
-    } else if (j.success && j.url) {
-      window.open(j.url, "_blank");
-    } else {
-      alert("❌ " + (j.error || "Failed to generate print"));
-    }
-  } catch (e) {
-    alert("❌ " + e.message);
-  }
-}
-
-/* ===== DASHBOARD LOGIC ===== */
-function renderDashboard(){
-  // choose data source
-  const useFiltered = document.getElementById('dashUseFiltered')?.checked;
-  const data = useFiltered ? filteredRows : rows;
+function buildCounts(data, keyIndex){
   const idxStatus = headers.indexOf("Status");
-  const idxUnit   = headers.indexOf("Unit");
-  const idxSheet  = headers.indexOf("Sheet Name");
-
-  // seed zero counts for every status so columns are consistent
-  const seed = () => Object.fromEntries(ALL_STATUSES.map(s => [s, 0]));
-
-  // ---- branch (sheet name) counts
-  const branchCounts = {};
+  const acc = {};
   data.forEach(r=>{
-    const sheet = r[idxSheet] || "(unknown)";
-    const st = (r[idxStatus] || "");
-    if(!branchCounts[sheet]) branchCounts[sheet] = seed();
-    branchCounts[sheet][st] = (branchCounts[sheet][st] || 0) + 1;
+    const key = r[keyIndex] || "(unknown)";
+    const st  = r[idxStatus] || "";
+    if(!acc[key]) acc[key]=seedCounts();
+    acc[key][st] = (acc[key][st]||0) + 1;
   });
-
-  // ---- unit counts
-  const unitCounts = {};
-  data.forEach(r=>{
-    const unit = r[idxUnit] || "(unknown)";
-    const st = (r[idxStatus] || "");
-    if(!unitCounts[unit]) unitCounts[unit] = seed();
-    unitCounts[unit][st] = (unitCounts[unit][st] || 0) + 1;
-  });
-
-  // render tables
-  renderCountTable("branchTable", "Branch", branchCounts);
-  renderCountTable("unitTable", "Unit", unitCounts);
+  return acc;
 }
 
 function renderCountTable(tableId, firstColLabel, countsObj){
-  const tbl = document.getElementById(tableId);
-  if(!tbl) return;
-
-  // header row
-  let thead = `<thead><tr><th>${firstColLabel}</th>`;
-  ALL_STATUSES.forEach(s=>{
-    const label = s || "(blank)";
-    thead += `<th>${label}</th>`;
+  const tbl=document.getElementById(tableId);
+  let thead=`<thead><tr><th>${firstColLabel}</th>`;
+  ALL_STATUSES.forEach(s=>thead+=`<th>${s||"(blank)"}</th>`); thead+=`<th>Total</th></tr></thead>`;
+  let tbody="<tbody>";
+  const entries=Object.entries(countsObj);
+  const totals=entries.map(([_,o])=>Object.values(o).reduce((a,b)=>a+b,0));
+  const maxTotal=Math.max(1,...totals);
+  entries.forEach(([k,o])=>{
+    const total=Object.values(o).reduce((a,b)=>a+b,0);
+    tbody+=`<tr><td>${k}</td>`;
+    ALL_STATUSES.forEach(s=>tbody+=`<td>${o[s]||0}</td>`);
+    const pct=Math.round(total/maxTotal*100);
+    tbody+=`<td>${total}<div class="bar"><span style="width:${pct}%"></span></div></td></tr>`;
   });
-  thead += `<th>Total</th></tr></thead>`;
-
-  // body
-  let tbody = "<tbody>";
-  const entries = Object.entries(countsObj);
-  // compute max total for simple bar
-  const totals = entries.map(([k, obj]) => Object.values(obj).reduce((a,b)=>a+b,0));
-  const maxTotal = Math.max(1, ...totals);
-
-  entries.forEach(([key, obj], i)=>{
-    const total = Object.values(obj).reduce((a,b)=>a+b,0);
-    tbody += `<tr><td>${key}</td>`;
-    ALL_STATUSES.forEach(s=>{
-      tbody += `<td>${obj[s] || 0}</td>`;
-    });
-    // total with bar
-    const pct = Math.round((total / maxTotal) * 100);
-    tbody += `<td>${total}<div class="bar"><span style="width:${pct}%"></span></div></td></tr>`;
-  });
-
-  // grand total row
-  const grand = Object.fromEntries(ALL_STATUSES.map(s => [s, 0]));
-  let grandTotal = 0;
-  entries.forEach(([_, obj])=>{
-    ALL_STATUSES.forEach(s => { grand[s] += (obj[s] || 0); });
-    grandTotal += Object.values(obj).reduce((a,b)=>a+b,0);
-  });
-  tbody += `<tr><th>Total</th>`;
-  ALL_STATUSES.forEach(s=>{ tbody += `<th>${grand[s]}</th>`; });
-  tbody += `<th>${grandTotal}</th></tr>`;
-
-  tbody += "</tbody>";
-  tbl.innerHTML = thead + tbody;
+  // grand total
+  const grand=seedCounts(); let gTot=0;
+  entries.forEach(([_,o])=>{ ALL_STATUSES.forEach(s=>grand[s]+=o[s]||0); gTot+=Object.values(o).reduce((a,b)=>a+b,0); });
+  tbody+=`<tr><th>Total</th>`; ALL_STATUSES.forEach(s=>tbody+=`<th>${grand[s]}</th>`); tbody+=`<th>${gTot}</th></tr>`;
+  tbody+="</tbody>";
+  tbl.innerHTML=thead+tbody;
 }
 
-/* ===== INIT ===== */
-loadData();
+async function refresh(){
+  if(!rows.length) await loadData();
+  const idxSheet = headers.indexOf("Sheet Name");
+  const idxUnit  = headers.indexOf("Unit");
+
+  const branchCounts = buildCounts(rows, idxSheet);
+  const unitCounts   = buildCounts(rows, idxUnit);
+
+  renderCountTable("branchTable","Branch",branchCounts);
+  renderCountTable("unitTable","Unit",unitCounts);
+}
+
+document.getElementById("refreshBtn").addEventListener("click", refresh);
+refresh();
 </script>
 </body>
 </html>
