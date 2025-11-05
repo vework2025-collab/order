@@ -87,54 +87,75 @@
 <script src="assets/app.js"></script>
 <script>
 /* ===== Your existing JS (trimmed to essentials & updated blank-status handling) ===== */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
-const FIXED_SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
-const INCLUDED_COLUMNS = ["Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Unit","Product Image","Order Form Photo","Remark","Status","Jobber Name"];
-const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
+const SCRIPT_URL = "YOUR_NEW_WEB_APP_URL"; // ← paste the same fresh URL here
+const FIXED_SHEETS = [
+  "Branch Sales Order","Jaipur Sales Order","Jaipur Alterations",
+  "Exhibition Sales Order","Wholesale Order"
+];
+const INCLUDED_COLUMNS = [
+  "Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Unit",
+  "Product Image","Order Form Photo","Remark","Status","Jobber Name"
+];
 
-let headers=[], rows=[], filteredRows=[], currentPage=1, rowsPerPage=25;
-const safeLower=v=>(v==null?"":String(v).toLowerCase());
-const clean=arr=>Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
+let headers=[], rows=[], dashRows=[];
 
-function toThumb(url){ if(!url||typeof url!=="string")return""; const id=(url.match(/[-\w]{25,}/)||[])[0]; return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:""; }
-function formatDateTime(val){ if(!val) return ""; const d=new Date(val); return isNaN(d)?val:d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
-
-async function loadData(){
-  document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
-  const res=await fetch(SCRIPT_URL); const data=await res.json();
-  const combined=combineSheetsObject(data);
-  headers=combined[0].map(h=>h||""); rows=clean(combined.slice(1));
-  rows.sort((a,b)=>new Date(b[0])-new Date(a[0])); filteredRows=rows;
-  populateFilters(); renderTable();
-  // Hash deep link for sheet filter
-if (location.hash){
-  resetFilters();
-  const params = new URLSearchParams(location.hash.substring(1));
-  const sheet = params.get("sheet");
-  const unit = params.get("unit");
-  const status = params.get("status");
-  if (sheet) document.getElementById("filterSheet").value = decodeURIComponent(sheet);
-  if (unit) document.getElementById("filterUnit").value = decodeURIComponent(unit);
-  if (status){
-    const decoded = decodeURIComponent(status);
-    document.querySelectorAll("#statusCheckboxes input").forEach(i=>{
-      i.checked = i.value === decoded;
-    });
-  }
-  applyFilters();
+function showDashErr(msg){
+  const el = document.getElementById("branchTable");
+  if (el) el.innerHTML = `<tr><td style="color:#b00020;font-weight:600">❌ ${msg}</td></tr>`;
+  console.error(msg);
 }
 
+async function loadData(){
+  try{
+    const res = await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+
+    let data;
+    try{
+      data = await res.json();
+    }catch(parseErr){
+      throw new Error("Response is not JSON. Check Apps Script doGet.");
+    }
+
+    const combined = combineSheetsObject(data);
+    headers = combined[0].map(h=>h||"");
+    rows = clean(combined.slice(1)).sort((a,b)=>new Date(b[0])-new Date(a[0]));
+    dashRows = rows.slice();
+    populateQuickFilters();
+    refreshDashboard();
+  }catch(e){
+    showDashErr(e.message);
+  }
+}
 
 function combineSheetsObject(obj){
   const out=[INCLUDED_COLUMNS];
+  if (!obj || typeof obj !== "object"){
+    console.warn("doGet returned unexpected payload:", obj);
+    return out;
+  }
   FIXED_SHEETS.forEach(sheet=>{
-    const sd=obj[sheet]; if(!Array.isArray(sd)||sd.length<2)return;
-    const hs=sd[0]; sd.slice(1).forEach(r=>{
-      const mapped=INCLUDED_COLUMNS.map(h=>{const i=hs.indexOf(h);return i===-1?"":r[i]||"";});
-      const t=hs.indexOf("Timestamp"); mapped[0]=t>=0?r[t]:""; mapped[1]=sheet; out.push(mapped);
+    const sd = obj[sheet];
+    if (!Array.isArray(sd) || sd.length < 2){
+      console.warn(`Sheet missing or empty: ${sheet}`);
+      return;
+    }
+    const hs = sd[0];
+    sd.slice(1).forEach(r=>{
+      if (!Array.isArray(r)) return;
+      const mapped = INCLUDED_COLUMNS.map(h=>{
+        const ix = hs.indexOf(h);
+        return ix===-1 ? "" : (r[ix]||"");
+      });
+      const ts = hs.indexOf("Timestamp");
+      mapped[0] = ts>=0 ? r[ts] : "";
+      mapped[1] = sheet;
+      out.push(mapped);
     });
-  }); return out;
+  });
+  return out;
 }
+
 function populateFilters(){
   const units=new Set(), sheetNames=new Set();
   const uIdx=headers.indexOf("Unit"), sIdx=headers.indexOf("Sheet Name");
