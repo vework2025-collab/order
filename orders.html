@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vasansi Enterprise Application — Orders</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  /* Keep your existing table look inside the card */
+  #dataTable { width:100%; border-collapse:collapse; background:#fff; }
+  #dataTable th, #dataTable td { border:1px solid #e3e3e3; padding:6px 8px; font-size:13px; white-space:nowrap; }
+  #dataTable th { background:#f5f6f7; }
+  img { width: 100px; height: 150px; object-fit: cover; border-radius: 5px; }
+  .remark-cell { white-space: normal; max-width: 400px; min-width: 150px; }
+  .save-btn { background:#28a745; color:#fff; padding:5px 10px; border:none; border-radius:4px; cursor:pointer; }
+  .pagination button { margin:0 2px; padding:5px 10px; border:1px solid #007bff; border-radius:4px; background:#fff; color:#007bff; cursor:pointer; }
+  .pagination button.active { background:#007bff; color:#fff; }
+  .pagination button[disabled] { opacity:.4; cursor:not-allowed; }
+  #entriesSelect { border:1px solid #ccc; border-radius:4px; padding:4px 6px; margin:0 4px; }
+  .status-checkboxes { display:flex; flex-wrap:wrap; gap:8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="title">Vasansi Enterprise Application</div>
+    <div class="user">Hemant Solanki ▼</div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <ul class="nav">
+      <li><a href="index.html">🏠 <span class="label">Dashboard</span></a></li>
+      <li><a href="dispatch.html">📦 <span class="label">Dispatch</span></a></li>
+      <li><a href="jobwork.html">🧵 <span class="label">Job Work</span></a></li>
+      <li class="section-title">Order</li>
+      <li>
+        <a class="active" href="orders.html">📋 <span class="label">Orders</span></a>
+        <ul class="submenu">
+          <li><a href="#Branch%20Sales%20Order">Branch Sales Order</a></li>
+          <li><a href="#Jaipur%20Sales%20Order">Jaipur Sales Order</a></li>
+          <li><a href="#Exhibition%20Sales%20Order">Exhibition Sales Order</a></li>
+          <li><a href="#Wholesale%20Order">Wholesale Order</a></li>
+        </ul>
+      </li>
+      <li><a href="production.html">🏭 <span class="label">Production</span></a></li>
+      <li><a href="reports.html">📑 <span class="label">Reports</span></a></li>
+    </ul>
+  </aside>
+
+  <!-- Content -->
+  <main class="content">
+    <div class="card">
+      <h2>Online Orders List</h2>
+      <div class="controls">
+        <label>Order No <input type="text" id="filterOrderNo" placeholder="Enter order no..."></label>
+        <label>Order Date <input type="date" id="filterOrderStart"> to <input type="date" id="filterOrderEnd"></label>
+        <label>Delivery Date <input type="date" id="filterDeliveryStart"> to <input type="date" id="filterDeliveryEnd"></label>
+        <label>Unit <select id="filterUnit"></select></label>
+        <label>Sheet <select id="filterSheet"></select></label>
+        <button class="btn" onclick="applyFilters()">Search</button>
+        <button onclick="resetFilters()">Reset</button>
+      </div>
+
+      <div class="controls">
+        <label><strong>Status:</strong></label>
+        <div class="status-checkboxes" id="statusCheckboxes"></div>
+      </div>
+
+      <div class="controls" style="justify-content: space-between;">
+        <input type="text" id="searchBar" placeholder="🔍 Search..." oninput="searchTable()">
+        <label>Show
+          <select id="entriesSelect" onchange="changeEntries()">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select> entries
+        </label>
+      </div>
+
+      <table id="dataTable"></table>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+/* ===== Your existing JS (trimmed to essentials & updated blank-status handling) ===== */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
+const FIXED_SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
+const INCLUDED_COLUMNS = ["Timestamp","Sheet Name","Order No","Order Date","Delivery Date","Item","Design No","Unit","Product Image","Order Form Photo","Remark","Status","Jobber Name"];
+const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
+
+let headers=[], rows=[], filteredRows=[], currentPage=1, rowsPerPage=25;
+const safeLower=v=>(v==null?"":String(v).toLowerCase());
+const clean=arr=>Array.isArray(arr)?arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))):[];
+
+function toThumb(url){ if(!url||typeof url!=="string")return""; const id=(url.match(/[-\w]{25,}/)||[])[0]; return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:""; }
+function formatDateTime(val){ if(!val) return ""; const d=new Date(val); return isNaN(d)?val:d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
+
+async function loadData(){
+  document.getElementById("dataTable").innerHTML="<tr><td>Loading data...</td></tr>";
+  const res=await fetch(SCRIPT_URL); const data=await res.json();
+  const combined=combineSheetsObject(data);
+  headers=combined[0].map(h=>h||""); rows=clean(combined.slice(1));
+  rows.sort((a,b)=>new Date(b[0])-new Date(a[0])); filteredRows=rows;
+  populateFilters(); renderTable();
+  // Hash deep link for sheet filter
+  if(location.hash){
+    const sheet = decodeURIComponent(location.hash.substring(1));
+    document.getElementById("filterSheet").value = sheet;
+    applyFilters();
+  }
+}
+function combineSheetsObject(obj){
+  const out=[INCLUDED_COLUMNS];
+  FIXED_SHEETS.forEach(sheet=>{
+    const sd=obj[sheet]; if(!Array.isArray(sd)||sd.length<2)return;
+    const hs=sd[0]; sd.slice(1).forEach(r=>{
+      const mapped=INCLUDED_COLUMNS.map(h=>{const i=hs.indexOf(h);return i===-1?"":r[i]||"";});
+      const t=hs.indexOf("Timestamp"); mapped[0]=t>=0?r[t]:""; mapped[1]=sheet; out.push(mapped);
+    });
+  }); return out;
+}
+function populateFilters(){
+  const units=new Set(), sheetNames=new Set();
+  const uIdx=headers.indexOf("Unit"), sIdx=headers.indexOf("Sheet Name");
+  rows.forEach(r=>{ if(r[uIdx]) units.add(r[uIdx]); if(r[sIdx]) sheetNames.add(r[sIdx]); });
+  filterUnit.innerHTML=`<option value="">All</option>`+[...units].map(u=>`<option>${u}</option>`).join("");
+  filterSheet.innerHTML=`<option value="">All</option>`+[...sheetNames].map(n=>`<option>${n}</option>`).join("");
+  statusCheckboxes.innerHTML=ALL_STATUSES.map(s=>`<label><input type="checkbox" value="${s}">${s||"(blank)"}</label>`).join("");
+}
+function applyFilters(){
+  const orderNo=safeLower(filterOrderNo.value), unit=filterUnit.value, sheet=filterSheet.value;
+  const selStatuses=[...document.querySelectorAll("#statusCheckboxes input:checked")].map(i=>i.value);
+  const iO=headers.indexOf("Order No"), iOD=headers.indexOf("Order Date"), iDD=headers.indexOf("Delivery Date"), iU=headers.indexOf("Unit"), iS=headers.indexOf("Status");
+  const oS=filterOrderStart.value, oE=filterOrderEnd.value, dS=filterDeliveryStart.value, dE=filterDeliveryEnd.value;
+  filteredRows=rows.filter(r=>{
+    const od=new Date(r[iOD]||""), dd=new Date(r[iDD]||"");
+    return (!orderNo||safeLower(r[iO]).includes(orderNo))
+        && (!sheet || r[headers.indexOf("Sheet Name")]===sheet)
+        && (!unit||r[iU]===unit)
+        && (!selStatuses.length||selStatuses.includes(r[iS]))
+        && (!oS||od>=new Date(oS)) && (!oE||od<=new Date(oE+"T23:59:59"))
+        && (!dS||dd>=new Date(dS)) && (!dE||dd<=new Date(dE+"T23:59:59"));
+  });
+  currentPage=1; renderTable();
+}
+function resetFilters(){ document.querySelectorAll(".card .controls input, .card .controls select").forEach(e=>e.value=""); document.querySelectorAll("#statusCheckboxes input").forEach(i=>i.checked=false); filteredRows=rows; currentPage=1; renderTable(); }
+function searchTable(){ const term=safeLower(searchBar.value); filteredRows=rows.filter(r=>r.some(c=>safeLower(c).includes(term))); currentPage=1; renderTable(); }
+function changeEntries(){ rowsPerPage=parseInt(entriesSelect.value||25,10); currentPage=1; renderTable(); }
+
+function renderTable(){
+  const tbl=document.getElementById("dataTable");
+  if(!filteredRows.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; pagination.innerHTML=""; return;}
+  const start=(currentPage-1)*rowsPerPage, end=start+rowsPerPage, page=filteredRows.slice(start,end);
+  let html="<thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"<th>Actions</th></tr></thead><tbody>";
+  page.forEach(r=>{
+    html+="<tr>";
+    headers.forEach((h,i)=>{
+      let val=r[i]||"", hLow=safeLower(h);
+      let tdClass = h.trim()==='Order No' ? ' class="order-no"' : '';
+      if(hLow.includes("timestamp")||hLow.includes("date")) val=formatDateTime(val);
+      else if((hLow.includes("image")||hLow.includes("photo"))&&val.includes("drive.google.com")){
+        const t=toThumb(val); val=t?`<a href="${val}" target="_blank"><img src="${t}"></a>`:val;
+      } else if(h==="Status"){
+        const sheetStatus=(r[i]||"").trim().toLowerCase();
+        val = "<select>"+ALL_STATUSES.map(s=>{
+          const sel = s.trim().toLowerCase()===sheetStatus?"selected":"";
+          const label = s||"(blank)";
+          return `<option ${sel} value="${s}">${label}</option>`;
+        }).join("")+"</select>";
+      } else if(h==="Remark"){ val=`<div class="remark-cell">${val}</div>`; }
+      html+=`<td${tdClass}>${val}</td>`;
+    });
+    html+=`<td><button class="save-btn" onclick="saveRow(this,'${r[1]}')">Save</button>
+            <button onclick="generateOrderPrint('${r[1]}','${r[headers.indexOf('Order No')]}')">🧾 Print</button></td></tr>`;
+  });
+  tbl.innerHTML=html+"</tbody>";
+  renderPagination();
+}
+function renderPagination(){
+  const totalPages=Math.ceil(filteredRows.length/rowsPerPage);
+  if(totalPages<=1){ pagination.innerHTML=""; return; }
+  let html=`<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Previous</button>`;
+  const startPage=Math.max(1,currentPage-2), endPage=Math.min(totalPages,startPage+4);
+  for(let i=startPage;i<=endPage;i++){ html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`; }
+  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>Next →</button>`;
+  pagination.innerHTML=html;
+}
+function gotoPage(p){ currentPage=p; renderTable(); }
+function gotoPrev(){ if(currentPage>1){ currentPage--; renderTable(); } }
+function gotoNext(t){ if(currentPage<t){ currentPage++; renderTable(); } }
+
+async function saveRow(btn,sheet){
+  const tr=btn.closest("tr"), tds=[...tr.children];
+  const orderCell = tr.querySelector("td.order-no");
+  let orderNo = orderCell ? orderCell.innerText.trim() : "";
+  if(!orderNo){
+    const iO = headers.findIndex(h=>h.replace(/\./g,"").trim().toLowerCase().includes("order no"));
+    if(iO>=0) orderNo = tds[iO]?.innerText?.trim() || "";
+  }
+  const sel=tr.querySelector("select"), rem=tr.querySelector(".remark-cell");
+  const status=sel?sel.value:"", remark=rem?rem.innerText.trim():"";
+  if(!orderNo) return alert("❌ Missing Order No");
+  try{
+    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheetName:sheet,orderNo,status,remark})});
+    const j=await res.json(); if(j.success) alert("✅ Updated successfully"); else throw new Error(j.error||"Failed");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function generateOrderPrint(sheetName, orderNo){
+  if(!confirm("Generate Order Print for "+orderNo+"?")) return;
+  try{
+    const res=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"print",sheetName,orderNo})});
+    const j=await res.json();
+    if(j.success && j.pdf){
+      const w=window.open(""); w.document.write(`<iframe width='100%' height='100%' src='data:application/pdf;base64,${j.pdf}'></iframe>`);
+    } else if (j.success && j.url){ window.open(j.url,"_blank"); } else { alert("❌ "+(j.error||"Failed to generate print")); }
+  }catch(e){ alert("❌ "+e.message); }
+}
+loadData();
+</script>
+</body>
+</html>
