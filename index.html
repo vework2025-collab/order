@@ -176,12 +176,18 @@ function refreshDashboard(){
   const idxStatus=headers.indexOf("Status");
   const idxOrderDate=headers.indexOf("Order Date");
   const total=dashRows.length;
-  const delivered=dashRows.filter(r=>(r[idxStatus]||"")==="Delivered").length;
-  const rfd=dashRows.filter(r=>(r[idxStatus]||"")==="Ready For Delivery").length;
-  const inProd=dashRows.filter(r=>{
-    const st=(r[idxStatus]||"");
-    return st!=="Delivered" && st!=="Cancelled";
-  }).length;
+ const stVal = r => (r[idxStatus]||"").trim();
+const sets = {
+  inProd: ["","Order Received","Dye","Print Process","Print Received","For Work",
+           "From Work Received","Send To Party","Received From Party","Stitching","Finishing"],
+  rfd: ["Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69",
+        "Ready For Delivery","Billed"],
+  delivered: ["Tracking Updated","Hand Delivery","Delivered","Cancelled"]
+};
+const inProd = dashRows.filter(r => sets.inProd.includes(stVal(r))).length;
+const rfd    = dashRows.filter(r => sets.rfd.includes(stVal(r))).length;
+const delivered = dashRows.filter(r => sets.delivered.includes(stVal(r))).length;
+
 
   document.getElementById("kpiTotal").textContent=total;
   document.getElementById("kpiDelivered").textContent=delivered;
@@ -270,4 +276,5 @@ document.addEventListener("click", e=>{
 </script>
 </body>
 </html>
+
 
