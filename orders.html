@@ -252,6 +252,14 @@ async function generateOrderPrint(sheetName, orderNo){
     } else if (j.success && j.url){ window.open(j.url,"_blank"); } else { alert("❌ "+(j.error||"Failed to generate print")); }
   }catch(e){ alert("❌ "+e.message); }
 }
+  // safely normalizes 2D arrays from Google Sheets
+function clean(arr) {
+  return Array.isArray(arr)
+    ? arr.filter(r => Array.isArray(r))
+        .map(r => r.map(c => (c == null ? "" : String(c))))
+    : [];
+}
+
 loadData();
 </script>
 </body>
