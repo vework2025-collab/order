@@ -170,16 +170,22 @@
 
     <script>
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzeb_JEU1OF6z_amI8ALAUtuJVMVAm_hqAYoYlY6nO3gZ0o08ICR-5re8ElGFnjtPI/exec";
-     document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    const res = await fetch("https://script.google.com/macros/s/AKfycbwzeb_JEU1OF6z_amI8ALAUtuJVMVAm_hqAYoYlY6nO3gZ0o08ICR-5re8ElGFnjtPI/exec?action=getDropdownValues");
-    const data = await res.json();
+     
+// ✅ JSONP dropdown loader
+function loadDropdowns() {
+  const cb = "cb" + Date.now();
+  window[cb] = function (data) {
     populateDropdowns(data);
-  } catch (err) {
-    console.error("Dropdown load failed:", err);
-    document.getElementById("msg").textContent = "❌ Failed to load dropdowns.";
-  }
-});
+    delete window[cb];
+  };
+  const s = document.createElement("script");
+  s.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
+  document.body.appendChild(s);
+}
+
+// run on page load
+document.addEventListener("DOMContentLoaded", loadDropdowns);
+
 
 
       const requiredFields = [
@@ -215,12 +221,19 @@
       }
 
       function populateDropdowns(data) {
-        fillDropdown("designerName", data.designers);
-        fillDropdown("unit", data.units);
-        fillDropdown("productName", data.products);
-        fillDropdown("printStyleId", data.printStyleIDs);
-        fillDropdown("printStyleNo", data.printStyleNos);
-      }
+  const map = {
+    designerName: data.designers,
+    unit: data.units,
+    productName: data.products,
+    printStyleId: data.printStyleIDs,
+    printStyleNo: data.printStyleNos
+  };
+  Object.keys(map).forEach(id => {
+    const select = document.getElementById(id);
+    select.innerHTML = "<option value=''>Select</option>" +
+      map[id].map(v => `<option>${v}</option>`).join("");
+  });
+}
 
       function fillDropdown(id, items) {
         const select = document.getElementById(id);
@@ -258,16 +271,8 @@
 
       form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  btn.disabled = true;
   msg.textContent = "Saving...";
-
-  // Front & back images -> base64
-  const fileFront = document.getElementById("productImage").files[0];
-  const fileBack  = document.getElementById("productImageBack")?.files[0];
-  const productImageData      = fileFront ? await toBase64(fileFront) : "";
-  const productImageBackData  = fileBack  ? await toBase64(fileBack)  : "";
-
-  const formData = {
+  const data = {
     designerName: designerName.value,
     unit: unit.value,
     productName: productName.value,
@@ -277,39 +282,22 @@
     color: color.value,
     topLength: topLength.value,
     bottomLength: bottomLength.value,
-    details: details.value,
-    productImageData,
-    productImageBackData,
-    productImageType: fileFront ? fileFront.type : "",
-    productImageName: fileFront ? fileFront.name : "",
-    productImageBackType: fileBack ? fileBack.type : "",
-    productImageBackName: fileBack ? fileBack.name : "",
-    // If you’re collecting materials/attachments, include them here too
-    materials: [], 
-    attachments: []
+    details: details.value
+  };
+  const q = encodeURIComponent(JSON.stringify(data));
+  const cb = "cb" + Date.now();
+
+  window[cb] = function (res) {
+    if (res.success) msg.textContent = "✅ Saved";
+    else msg.textContent = "❌ " + (res.error || "Failed");
+    delete window[cb];
   };
 
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "submitSample", formData })
-    });
-    const j = await res.json();
-    if (j.success) {
-      msg.textContent = "✅ Saved";
-      form.reset();
-      btn.disabled = true;
-      btn.classList.remove("active");
-    } else {
-      msg.textContent = "❌ " + (j.error || "Failed to save");
-    }
-  } catch (err) {
-    msg.textContent = "❌ " + err.message;
-  } finally {
-    btn.disabled = false;
-  }
+  const script = document.createElement("script");
+  script.src = `${SCRIPT_URL}?action=submitSample&data=${q}&callback=${cb}`;
+  document.body.appendChild(script);
 });
+
     </script>
   </body>
 </html>
