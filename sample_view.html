@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vasansi Enterprise Application — Sample View</title>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:,">
+<style>
+  body { font-family: Segoe UI, sans-serif; }
+  #dataTable { width:100%; border-collapse:collapse; background:#fff; }
+  #dataTable th, #dataTable td { border:1px solid #ddd; padding:6px 8px; font-size:13px; white-space:nowrap; }
+  #dataTable th { background:#f5f6f7; position:sticky; top:0; }
+  img.thumb { width:100px; height:130px; object-fit:cover; border-radius:8px; cursor:pointer; }
+  .controls { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; align-items:center; }
+  select, input[type="text"] { padding:5px; border:1px solid #ccc; border-radius:5px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="title">Vasansi Enterprise Application</div>
+    <div class="user">Hemant Solanki ▼</div>
+  </div>
+
+  <aside class="sidebar">
+    <ul class="nav">
+      <li><a href="index.html">🏠 Dashboard</a></li>
+      <li><a href="production.html">🏭 Production Overview</a></li>
+      <li><a href="sample.html">📄 Sample Form</a></li>
+      <li><a href="sample_view.html" class="active">📋 Sample View</a></li>
+    </ul>
+  </aside>
+
+  <main class="content">
+    <div class="card">
+      <h2>Sample Records</h2>
+
+      <div class="controls">
+        <input type="text" id="filterDesigner" placeholder="Designer Name">
+        <input type="text" id="filterUnit" placeholder="Unit">
+        <input type="text" id="filterDesignNo" placeholder="Design No">
+        <input type="text" id="filterPrintStyleId" placeholder="Print Style ID">
+        <input type="text" id="filterProductName" placeholder="Product Name">
+        <input type="text" id="filterPrintStyleNo" placeholder="Print Style No">
+        <button id="applyFilter">Filter</button>
+        <button id="resetFilter">Reset</button>
+      </div>
+
+      <div class="controls" style="justify-content: space-between;">
+        <input type="text" id="searchBar" placeholder="🔍 Search samples..." style="flex:1; max-width:280px;">
+        <label>Show
+          <select id="entriesSelect">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select> entries
+        </label>
+      </div>
+
+      <div id="pageInfo" style="margin:5px 0 10px; font-size:12px; color:#555;"></div>
+      <table id="dataTable"><tr><td>Loading...</td></tr></table>
+      <div id="pagination"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
+let rows=[], filtered=[], currentSearchTerm="", currentPage=1, rowsPerPage=25;
+
+function toThumb(url){
+  const m=(typeof url==="string")?url.match(/[-\\w]{25,}/):null;
+  const id=m?m[0]:null;
+  return id?`https://drive.google.com/thumbnail?id=${id}&sz=w200-h200`:url;
+}
+
+async function loadData(){
+  const tbl=document.getElementById("dataTable");
+  tbl.innerHTML="<tr><td>Loading...</td></tr>";
+  try{
+    const res=await fetch(`${SCRIPT_URL}?page=Sample_View`);
+    const data=await res.json();
+    rows=data.map((r,i)=>({
+      "Sr No":i+1,
+      "Product Image":r.productImage,
+      "Unit":r.unit,
+      "Design No":r.designNo,
+      "Product Name":r.productName,
+      "Print Style ID":r.printStyleId,
+      "Print Style No":r.printStyleNo,
+      "Top/Bottom Length":`${r.topLength}/${r.bottomLength}`,
+      "Details":r.details,
+      "Designer":r.designerName
+    }));
+    filtered=rows.slice();
+    renderTable();
+  }catch(e){
+    console.error(e);
+    tbl.innerHTML=`<tr><td style="color:red">${e.message}</td></tr>`;
+  }
+}
+
+function applyFilter(){
+  const des=filterDesigner.value.toLowerCase();
+  const unit=filterUnit.value.toLowerCase();
+  const dno=filterDesignNo.value.toLowerCase();
+  const psid=filterPrintStyleId.value.toLowerCase();
+  const pname=filterProductName.value.toLowerCase();
+  const psno=filterPrintStyleNo.value.toLowerCase();
+
+  filtered=rows.filter(r=>
+    (!des||r.Designer.toLowerCase().includes(des)) &&
+    (!unit||r.Unit.toLowerCase().includes(unit)) &&
+    (!dno||r["Design No"].toLowerCase().includes(dno)) &&
+    (!psid||r["Print Style ID"].toLowerCase().includes(psid)) &&
+    (!pname||r["Product Name"].toLowerCase().includes(pname)) &&
+    (!psno||r["Print Style No"].toLowerCase().includes(psno))
+  );
+  currentPage=1;
+  renderTable();
+}
+
+function resetFilter(){
+  document.querySelectorAll(".controls input").forEach(i=>i.value="");
+  filtered=rows.slice();
+  currentPage=1;
+  renderTable();
+}
+
+document.getElementById("applyFilter").onclick=applyFilter;
+document.getElementById("resetFilter").onclick=resetFilter;
+
+document.getElementById("searchBar").addEventListener("input",e=>{
+  currentSearchTerm=e.target.value.toLowerCase();
+  applySearch();
+});
+
+document.getElementById("entriesSelect").addEventListener("change",e=>{
+  rowsPerPage=parseInt(e.target.value,10)||25;
+  currentPage=1;
+  renderTable();
+});
+
+function applySearch(){
+  if(!currentSearchTerm){ applyFilter(); return; }
+  filtered=rows.filter(r=>
+    Object.values(r).some(v=>String(v).toLowerCase().includes(currentSearchTerm))
+  );
+  currentPage=1;
+  renderTable();
+}
+
+function renderTable(){
+  const tbl=document.getElementById("dataTable");
+  if(!filtered.length){ tbl.innerHTML="<tr><td>No data found</td></tr>"; return; }
+  const cols=Object.keys(filtered[0]);
+  let html="<thead><tr>"+cols.map(c=>`<th>${c}</th>`).join("")+"</tr></thead><tbody>";
+  const start=(currentPage-1)*rowsPerPage, end=Math.min(start+rowsPerPage,filtered.length);
+  filtered.slice(start,end).forEach(r=>{
+    html+="<tr>"+cols.map(h=>{
+      let v=r[h];
+      if(h==="Product Image" && v){
+        const t=toThumb(v);
+        v=`<a href="${v}" target="_blank"><img src="${t}" class="thumb"></a>`;
+      }
+      return `<td>${v||""}</td>`;
+    }).join("")+"</tr>";
+  });
+  html+="</tbody>";
+  tbl.innerHTML=html;
+  renderPagination();
+}
+
+function renderPagination(){
+  const total=filtered.length;
+  const totalPages=Math.max(1,Math.ceil(total/rowsPerPage));
+  if(currentPage>totalPages) currentPage=totalPages;
+  const startRow=(total)?(currentPage-1)*rowsPerPage+1:0;
+  const endRow=Math.min(total,currentPage*rowsPerPage);
+  pageInfo.textContent=`Showing ${startRow}–${endRow} of ${total}`;
+  const box=document.getElementById("pagination");
+  if(totalPages<=1){ box.innerHTML=""; return; }
+  let html=`<button onclick="gotoPage(1)" ${currentPage===1?"disabled":""}>⏮</button>
+            <button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>←</button>`;
+  const win=7;
+  let s=Math.max(1,currentPage-Math.floor(win/2));
+  let e=Math.min(totalPages,s+win-1);
+  if(e-s<win-1) s=Math.max(1,e-win+1);
+  for(let i=s;i<=e;i++){
+    html+=`<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
+  }
+  html+=`<button onclick="gotoNext(${totalPages})" ${currentPage===totalPages?"disabled":""}>→</button>
+         <button onclick="gotoPage(${totalPages})" ${currentPage===totalPages?"disabled":""}>⏭</button>`;
+  box.innerHTML=html;
+}
+function gotoPage(p){currentPage=p;renderTable();}
+function gotoPrev(){if(currentPage>1){currentPage--;renderTable();}}
+function gotoNext(t){if(currentPage<t){currentPage++;renderTable();}}
+
+loadData();
+</script>
+</body>
+</html>
