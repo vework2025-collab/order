@@ -93,14 +93,24 @@ async function submitSample() {
   const msg = document.getElementById("msg");
   msg.textContent = "Uploading... Please wait.";
 
-  const file = document.getElementById("productImage").files[0];
-  let fileData = null, fileType = "", fileName = "";
+  // Product Image Front
+const fileFront = document.getElementById("productImage").files[0];
+let fileFrontData = null, fileFrontType = "", fileFrontName = "";
+if (fileFront) {
+  fileFrontData = await getBase64(fileFront);
+  fileFrontType = fileFront.type;
+  fileFrontName = fileFront.name;
+}
 
-  if (file) {
-    fileData = await getBase64(file);
-    fileType = file.type;
-    fileName = file.name;
-  }
+// Product Image Back
+const fileBack = document.getElementById("productImageBack").files[0];
+let fileBackData = null, fileBackType = "", fileBackName = "";
+if (fileBack) {
+  fileBackData = await getBase64(fileBack);
+  fileBackType = fileBack.type;
+  fileBackName = fileBack.name;
+}
+
 
   const data = {
     designerName: document.getElementById("designerName").value,
@@ -113,9 +123,12 @@ async function submitSample() {
     topLength: document.getElementById("topLength").value,
     bottomLength: document.getElementById("bottomLength").value,
     details: document.getElementById("details").value,
-    productImageData: fileData,
-    productImageType: fileType,
-    productImageName: fileName,
+    productImageData: fileFrontData,
+productImageType: fileFrontType,
+productImageName: fileFrontName,
+productImageBackData: fileBackData,
+productImageBackType: fileBackType,
+productImageBackName: fileBackName,
     materials: [],
     attachments: []
   };
