@@ -137,6 +137,16 @@ async function loadData(){
     });
 
     rows = out;
+    // ✅ Sort rows by Order Date (newest first)
+rows.sort((a, b) => {
+  const da = new Date(a["Order Date"]);
+  const db = new Date(b["Order Date"]);
+  if (isNaN(da) && isNaN(db)) return 0;
+  if (isNaN(da)) return 1;
+  if (isNaN(db)) return -1;
+  return db - da; // newest first
+});
+
     populateFilters();
     initSearchAndEntries();   // ✅ new search + entries
     handleHashDeepLink();
