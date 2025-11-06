@@ -84,34 +84,34 @@
      </main>
 </div>
 
-<script src="assets/app.js"></script>
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE5VORxmizRnO1Cnw0LVZjbl_f_ZBOgadrGynkJLfsl5QPs1ocPhDkOqpi_jH1tTZt/exec";
 const SHEETS = ["Branch Sales Order","Jaipur Sales Order","Jaipur Alterations","Exhibition Sales Order","Wholesale Order"];
-
-// exact columns you requested (table order)
 const VISIBLE = [
   "Sr No","Order No","Order Date","Customer Name","Item","Design No",
   "Delivery Date","Unit","Status","Remark","Product Image","Order Form Photo"
 ];
-// full status list (with blank first)
 const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
 
-let rows = [];         // full dataset
-let filtered = [];     // after filters/search
+let rows = [];
+let filtered = [];
+let currentSearchTerm = "";
 let currentPage = 1;
 let rowsPerPage = 25;
-let currentSearchTerm = "";  // 🔎 universal search term
 
-
-function clean(arr){ return Array.isArray(arr) ? arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))) : []; }
+function clean(arr){
+  return Array.isArray(arr)
+    ? arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c)))
+    : [];
+}
 
 function toThumb(url){
-  const m = (typeof url==="string") ? url.match(/[-\w]{25,}/) : null;
+  const m = (typeof url==="string") ? url.match(/[-\\w]{25,}/) : null;
   const id = m? m[0] : null;
   return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w200-h200` : "";
 }
 
+// ======= MAIN LOADER =======
 async function loadData(){
   const tbl=document.getElementById("dataTable");
   tbl.innerHTML="<tr><td>Loading data...</td></tr>";
@@ -119,8 +119,7 @@ async function loadData(){
     const res = await fetch(`${SCRIPT_URL}?t=${Date.now()}`);
     const json = await res.json();
 
-    // Flatten and map to your visible columns
-    const out = [];
+    const out=[];
     SHEETS.forEach(name=>{
       const d=json[name];
       if(!Array.isArray(d)||d.length<2) return;
@@ -131,14 +130,15 @@ async function loadData(){
           const idx = hs.indexOf(col);
           o[col] = idx===-1 ? "" : (r[idx]??"");
         });
-        o._sheet = name; // keep sheet for save/print & filtering
+        o._sheet = name;
         out.push(o);
       });
     });
 
     rows = out;
     populateFilters();
-    handleHashDeepLink();   // apply branch/status/unit if present
+    initSearchAndEntries();   // ✅ new search + entries
+    handleHashDeepLink();
     filtered = rows.slice();
     renderTable();
   }catch(e){
@@ -146,27 +146,8 @@ async function loadData(){
     tbl.innerHTML=`<tr><td style="color:#b00020;font-weight:600">❌ ${e.message}</td></tr>`;
   }
 }
-function initSearchAndEntries() {
-  const searchInput = document.getElementById("searchBar");
-  const entriesSelect = document.getElementById("entriesSelect");
 
-  if (searchInput) {
-    searchInput.addEventListener("input", () => {
-      const term = searchInput.value.trim().toLowerCase();
-      currentSearchTerm = term;
-      applyFilters(); // search integrates with all other filters
-    });
-  }
-
-  if (entriesSelect) {
-    entriesSelect.addEventListener("change", () => {
-      rowsPerPage = parseInt(entriesSelect.value, 10) || 25;
-      currentPage = 1;
-      renderTable();
-    });
-  }
-}
-
+// ======= FILTER CONTROLS =======
 function populateFilters(){
   const units = [...new Set(rows.map(r=>r["Unit"]).filter(Boolean))];
   const sheets = [...new Set(rows.map(r=>r._sheet).filter(Boolean))];
@@ -174,7 +155,6 @@ function populateFilters(){
   filterUnit.innerHTML  = `<option value="">All</option>` + units.map(u=>`<option>${u}</option>`).join("");
   filterSheet.innerHTML = `<option value="">All</option>` + sheets.map(s=>`<option>${s}</option>`).join("");
 
-  // status checkboxes (include blank)
   statusBoxes.innerHTML = ALL_STATUSES.map(s=>{
     const label = s || "(blank)";
     return `<label><input type="checkbox" value="${s}"> ${label}</label>`;
@@ -184,6 +164,45 @@ function populateFilters(){
   btnReset.onclick = resetFilters;
 }
 
+// ======= UNIVERSAL SEARCH + SHOW ENTRIES =======
+function initSearchAndEntries() {
+  const searchInput = document.getElementById("searchBar");
+  const entriesSelect = document.getElementById("entriesSelect");
+
+  if (entriesSelect) {
+    entriesSelect.value = rowsPerPage;
+    entriesSelect.addEventListener("change", () => {
+      rowsPerPage = parseInt(entriesSelect.value, 10) || 25;
+      currentPage = 1;
+      renderTable();
+    });
+  }
+
+  if (searchInput) {
+    // Add clear button ❌ dynamically
+    const clearBtn = document.createElement("span");
+    clearBtn.textContent = "❌";
+    clearBtn.style.cursor = "pointer";
+    clearBtn.style.marginLeft = "6px";
+    clearBtn.style.display = "none";
+    clearBtn.style.userSelect = "none";
+    clearBtn.onclick = () => {
+      searchInput.value = "";
+      currentSearchTerm = "";
+      clearBtn.style.display = "none";
+      applyFilters();
+    };
+    searchInput.parentNode.insertBefore(clearBtn, searchInput.nextSibling);
+
+    searchInput.addEventListener("input", () => {
+      currentSearchTerm = searchInput.value.trim().toLowerCase();
+      clearBtn.style.display = currentSearchTerm ? "inline" : "none";
+      applyFilters();
+    });
+  }
+}
+
+// ======= FILTER LOGIC (with search integrated) =======
 function applyFilters(){
   const orderNo = (filterOrderNo.value||"").toLowerCase();
   const oS=filterOrderStart.value, oE=filterOrderEnd.value;
@@ -195,7 +214,8 @@ function applyFilters(){
     const od = new Date(r["Order Date"]||"");
     const dd = new Date(r["Delivery Date"]||"");
     const st = r["Status"] ?? "";
-    const matchesFilters =
+
+    const ok =
       (!orderNo || String(r["Order No"]||"").toLowerCase().includes(orderNo)) &&
       (!sheet || r._sheet===sheet) &&
       (!unit || r["Unit"]===unit) &&
@@ -205,11 +225,17 @@ function applyFilters(){
       (!dS || dd>=new Date(dS)) &&
       (!dE || dd<=new Date(dE+"T23:59:59"));
 
-    if (!matchesFilters) return false;
+    if (!ok) return false;
 
-    // 🔎 universal search: applies on top of other filters
-    if (!currentSearchTerm) return true;
-    return Object.values(r).some(v => String(v||"").toLowerCase().includes(currentSearchTerm));
+    // 🔍 universal search across all columns
+    if (currentSearchTerm) {
+      const match = Object.values(r).some(v =>
+        String(v||"").toLowerCase().includes(currentSearchTerm)
+      );
+      if (!match) return false;
+    }
+
+    return true;
   });
 
   currentPage = 1;
@@ -219,16 +245,19 @@ function applyFilters(){
 function resetFilters(){
   document.querySelectorAll(".card .controls input, .card .controls select").forEach(el=>el.value="");
   document.querySelectorAll("#statusBoxes input").forEach(i=>i.checked=false);
+  currentSearchTerm = "";
+  const clearBtn = document.querySelector("#searchEntriesBar span");
+  if (clearBtn) clearBtn.style.display = "none";
   filtered = rows.slice();
   currentPage=1;
   renderTable();
 }
 
-// Deep-link handler: supports #<Sheet> OR #sheet=&unit=&status=
+// ======= HASH LINKS (branch/unit/status) =======
 function handleHashDeepLink(){
   const raw = location.hash.substring(1);
   if (!raw) return;
-  resetFilters(); // clear everything before filtering
+  resetFilters();
 
   if (!raw.includes("=")){
     const sheet = decodeURIComponent(raw);
@@ -251,99 +280,93 @@ function handleHashDeepLink(){
   applyFilters();
 }
 
-
-function renderTable() {
+// ======= RENDER TABLE + PAGINATION =======
+function renderTable(){
   const tbl = document.getElementById("dataTable");
-  if (!filtered.length) {
-    tbl.innerHTML = "<tr><td>No data found</td></tr>";
-    document.getElementById("pagination").innerHTML = "";
-    document.getElementById("pageInfo").textContent = "";
+  if(!filtered.length){
+    tbl.innerHTML="<tr><td>No data found</td></tr>";
+    document.getElementById("pagination").innerHTML="";
+    document.getElementById("pageInfo").textContent="";
     return;
   }
 
-  // helper to format date
-  function fmtDate(v) {
-    if (!v) return "";
+  function fmtDate(v){
+    if(!v) return "";
     const d = new Date(v);
-    if (isNaN(d)) return v;
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
+    if(isNaN(d)) return v;
+    return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
   }
 
-  const cols = [...VISIBLE, "Actions"];
-  let thead = "<thead><tr>" + cols.map(h => `<th>${h}</th>`).join("") + "</tr></thead>";
+  const cols = [...VISIBLE,"Actions"];
+  let thead = "<thead><tr>"+cols.map(h=>`<th>${h}</th>`).join("")+"</tr></thead>";
 
-  const start = (currentPage - 1) * rowsPerPage;
-  const end   = Math.min(start + rowsPerPage, filtered.length);
-  const page  = filtered.slice(start, end);
+  const start=(currentPage-1)*rowsPerPage;
+  const end=Math.min(start+rowsPerPage,filtered.length);
+  const page=filtered.slice(start,end);
 
-  let tbody = "<tbody>";
-  page.forEach(r => {
+  let tbody="<tbody>";
+  page.forEach(r=>{
     tbody += `<tr data-sheet="${r._sheet}">`;
-    VISIBLE.forEach(h => {
+    VISIBLE.forEach(h=>{
       let v = r[h] ?? "";
-      if (["Order Date","Delivery Date"].includes(h)) v = fmtDate(v);
-
-      if ((h === "Product Image" || h === "Order Form Photo") && String(v).includes("drive.google.com")) {
+      if(["Order Date","Delivery Date"].includes(h)) v = fmtDate(v);
+      if((h==="Product Image"||h==="Order Form Photo") && String(v).includes("drive.google.com")){
         const t = toThumb(v);
         v = t ? `<a href="${v}" target="_blank"><img src="${t}"></a>` : v;
-      } else if (h === "Status") {
-        const cur = String(v || "").trim().toLowerCase();
-        v = `<select class="status-select">` +
-            ALL_STATUSES.map(s=>{
-              const sel = String(s).trim().toLowerCase()===cur ? "selected":"";
-              const label = s || "(blank)";
-              return `<option ${sel} value="${s}">${label}</option>`;
-            }).join("") + `</select>`;
-      } else if (h === "Remark") {
+      } else if (h==="Status"){
+        const cur=String(v||"").trim().toLowerCase();
+        v = `<select class="status-select">`+
+          ALL_STATUSES.map(s=>{
+            const sel = String(s).trim().toLowerCase()===cur ? "selected":"";
+            const label = s || "(blank)";
+            return `<option ${sel} value="${s}">${label}</option>`;
+          }).join("")+`</select>`;
+      } else if (h==="Remark"){
         v = `<div class="remark" contenteditable="true">${v}</div>`;
       }
       tbody += `<td>${v}</td>`;
     });
-    const orderNo = String(r["Order No"] || "").replace(/"/g,"&quot;");
+    const orderNo = String(r["Order No"]||"").replace(/"/g,"&quot;");
     tbody += `<td>
       <button class="save-btn" onclick="saveRow(this,'${orderNo}')">Save</button>
       <button onclick="printRow(this,'${orderNo}')">🧾 Print</button>
     </td>`;
     tbody += "</tr>";
   });
-  tbody += "</tbody>";
+  tbody+="</tbody>";
   tbl.innerHTML = thead + tbody;
 
-  renderPaginationClassic(); // 👈 call classic pager every time
+  renderPaginationClassic();
+  const entriesSelect = document.getElementById("entriesSelect");
+  if(entriesSelect) entriesSelect.value = rowsPerPage;
 }
 
-// ===== CLASSIC PAGINATION (Prev | 1..N | Next) =====
+// ======= PAGINATION CLASSIC =======
 function renderPaginationClassic(){
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
 
-  // clamp page range
-  if (currentPage > totalPages) currentPage = totalPages;
-  if (currentPage < 1) currentPage = 1;
+  if(currentPage>totalPages) currentPage = totalPages;
+  if(currentPage<1) currentPage = 1;
 
-  // info line
   const startRow = total ? (currentPage - 1) * rowsPerPage + 1 : 0;
   const endRow   = Math.min(total, currentPage * rowsPerPage);
   const info = document.getElementById("pageInfo");
-  if (info) info.textContent = `Showing ${startRow}–${endRow} of ${total} entries`;
+  if(info) info.textContent = `Showing ${startRow}–${endRow} of ${total} entries`;
 
   const box = document.getElementById("pagination");
-  if (totalPages <= 1){ box.innerHTML = ""; return; }
+  if(totalPages<=1){ box.innerHTML=""; return; }
 
   let html = "";
   html += `<button onclick="gotoPage(1)" ${currentPage===1?"disabled":""}>⏮ First</button>`;
   html += `<button onclick="gotoPrev()" ${currentPage===1?"disabled":""}>← Prev</button>`;
 
-  // sliding window (max 7 numbers)
-  const win = 7;
-  let start = Math.max(1, currentPage - Math.floor(win/2));
-  let end = Math.min(totalPages, start + win - 1);
-  if (end - start < win - 1) start = Math.max(1, end - win + 1);
+  const win=7;
+  let s=Math.max(1,currentPage-Math.floor(win/2));
+  let e=Math.min(totalPages,s+win-1);
+  if(e-s<win-1) s=Math.max(1,e-win+1);
 
-  for (let i=start; i<=end; i++){
+  for(let i=s;i<=e;i++){
     html += `<button class="${i===currentPage?'active':''}" onclick="gotoPage(${i})">${i}</button>`;
   }
 
@@ -352,17 +375,11 @@ function renderPaginationClassic(){
   box.innerHTML = html;
 }
 
-function gotoPage(p){ currentPage = p; renderTable(); }
+function gotoPage(p){ currentPage=p; renderTable(); }
 function gotoPrev(){ if(currentPage>1){ currentPage--; renderTable(); } }
 function gotoNext(t){ if(currentPage<t){ currentPage++; renderTable(); } }
 
-
-function gotoPage(p){ currentPage = p; renderTable(); }
-function gotoPrev(){ if(currentPage>1){ currentPage--; renderTable(); } }
-function gotoNext(t){ if(currentPage<t){ currentPage++; renderTable(); } }
-
-
-// ===== Save / Print using your Apps Script doPost =====
+// ======= SAVE / PRINT =======
 async function saveRow(btn, orderNo){
   const tr = btn.closest("tr");
   const sheetName = tr.dataset.sheet;
