@@ -169,35 +169,27 @@
     </div>
 
     <script>
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxaDA4zHRSMx2DZHpI24OYMdvJPwGCAhnRbp7Ibg7vxNhh_LeVJKHXryUyRQb9b783B/exec";
      
 // ✅ JSONP dropdown loader
-// === JSONP dropdown loader ===
-function loadDropdowns() {
-  const cbName = "cb" + Date.now();
-  window[cbName] = function (response) {
-    // response is the object we get back from Apps Script
-    if (response && typeof populateDropdowns === "function") {
-      populateDropdowns(response);
-    } else {
-      console.error("populateDropdowns not found or bad response:", response);
-    }
-    delete window[cbName];
-  };
-  const script = document.createElement("script");
-  script.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cbName}`;
-  document.body.appendChild(script);
-}
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWq6umwvKKy23eJ3eDO6ic_J2R5Ir5jOpkNDW0AG7EEVJAyAqiJvK-r_T1VQZrAA32/exec";
 
-// Run only after populateDropdowns() is declared
-window.addEventListener("DOMContentLoaded", () => {
-  if (typeof populateDropdowns === "function") {
-    loadDropdowns();
-  } else {
-    // Wait a little if the function isn't loaded yet
-    setTimeout(loadDropdowns, 300);
+// dropdown loader using POST (robust)
+async function loadDropdowns() {
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "getDropdownValues" })
+    });
+    const data = await res.json();
+    populateDropdowns(data);
+  } catch (err) {
+    console.error("Dropdown load failed:", err);
+    document.getElementById("msg").textContent = "❌ Failed to load dropdowns";
   }
-});
+}
+document.addEventListener("DOMContentLoaded", loadDropdowns);
+
 
 
       const requiredFields = [
