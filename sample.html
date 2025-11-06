@@ -208,10 +208,36 @@ async function loadDropdowns() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", loadDropdowns);
+// ===== Build Materials & Attachments rows =====
+document.addEventListener("DOMContentLoaded", () => {
+  // Materials
+  const matDiv = document.getElementById("materials");
+  if (matDiv) {
+    for (let i = 1; i <= 5; i++) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <input type="text" id="matName${i}" placeholder="Material ${i} Name">
+        <input type="text" id="matQty${i}" placeholder="Qty">
+      `;
+      matDiv.appendChild(row);
+    }
+  }
 
-
-
+  // Attachments
+  const attDiv = document.getElementById("attachments");
+  if (attDiv) {
+    for (let i = 1; i <= 5; i++) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <input type="text" id="attName${i}" placeholder="Attachment ${i} Name">
+        <input type="file" id="attPhoto${i}" accept="image/*" class="file-input">
+      `;
+      attDiv.appendChild(row);
+    }
+  }
+});
 
       const requiredFields = [
         "designerName","unit","productName","printStyleId","printStyleNo",
