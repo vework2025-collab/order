@@ -281,10 +281,14 @@ window.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      form.addEventListener("submit", async (e) => {
+      // === JSONP save handler ===
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   msg.textContent = "Saving...";
-  const data = {
+  btn.disabled = true;
+
+  // collect form data
+  const dataObj = {
     designerName: designerName.value,
     unit: unit.value,
     productName: productName.value,
@@ -296,20 +300,30 @@ window.addEventListener("DOMContentLoaded", () => {
     bottomLength: bottomLength.value,
     details: details.value
   };
-  const q = encodeURIComponent(JSON.stringify(data));
-  const cb = "cb" + Date.now();
 
-  window[cb] = function (res) {
-    if (res.success) msg.textContent = "✅ Saved";
-    else msg.textContent = "❌ " + (res.error || "Failed");
-    delete window[cb];
+  // convert to JSON and URI-encode
+  const q = encodeURIComponent(JSON.stringify(dataObj));
+  const cbName = "cbSave" + Date.now();
+
+  // define callback
+  window[cbName] = function (res) {
+    console.log("Save response:", res);
+    if (res && res.success) {
+      msg.textContent = "✅ Saved successfully!";
+      form.reset();
+      btn.classList.remove("active");
+      btn.disabled = true;
+    } else {
+      msg.textContent = "❌ " + (res.error || "Save failed");
+    }
+    delete window[cbName];
   };
 
-  const script = document.createElement("script");
-  script.src = `${SCRIPT_URL}?action=submitSample&data=${q}&callback=${cb}`;
-  document.body.appendChild(script);
+  // inject <script> to call Apps Script
+  const s = document.createElement("script");
+  s.src = `${SCRIPT_URL}?action=submitSample&data=${q}&callback=${cbName}`;
+  document.body.appendChild(s);
 });
-
-    </script>
+   </script>
   </body>
 </html>
