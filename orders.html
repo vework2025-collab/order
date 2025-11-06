@@ -62,14 +62,8 @@
         <label><strong>Status:</strong></label>
         <div id="statusBoxes" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
       </div>
-
-      <table id="dataTable"><tr><td>Loading data...</td></tr></table>
-      <div class="pagination" id="pagination"></div>
-    </div>
-    <div id="pageInfo" style="margin-top:6px;font-size:12px;color:#555;"></div>
-<div class="pagination" id="pagination" style="margin-top:6px;"></div>
-    <!-- Universal Search + Entries per page -->
-<div class="controls" style="justify-content: space-between;">
+      <!-- Universal Search + Entries per page -->
+<div class="controls" id="searchEntriesBar" style="justify-content: space-between;">
   <input type="text" id="searchBar" placeholder="🔍 Search..." style="flex:1; max-width:300px;">
   <label>Show
     <select id="entriesSelect">
@@ -80,7 +74,15 @@
     </select> entries
   </label>
 </div>
-  </main>
+
+<div id="pageInfo" style="margin-top:6px;font-size:12px;color:#555;"></div>
+
+      <table id="dataTable"><tr><td>Loading data...</td></tr></table>
+      <div class="pagination" id="pagination"></div>
+    </div>
+    <div id="pageInfo" style="margin-top:6px;font-size:12px;color:#555;"></div>
+<div class="pagination" id="pagination" style="margin-top:6px;"></div>
+     </main>
 </div>
 
 <script src="assets/app.js"></script>
@@ -96,9 +98,12 @@ const VISIBLE = [
 // full status list (with blank first)
 const ALL_STATUSES = ["","Order Received","Dye","Print Process","Print Received","For Work","From Work Received","Send To Party","Received From Party","Stitching","Finishing","Dispatch To Warehouse","Received At Warehouse","Send To D69","Received At D69","Ready For Delivery","Billed","Tracking Updated","Hand Delivery","Delivered","Cancelled"];
 
-let rows = [];     // each row: { ...mapped fields..., _sheet: "Jaipur Sales Order" }
-let filtered = [];
-let currentPage=1, rowsPerPage=25;
+let rows = [];         // full dataset
+let filtered = [];     // after filters/search
+let currentPage = 1;
+let rowsPerPage = 25;
+let currentSearchTerm = "";  // 🔎 universal search term
+
 
 function clean(arr){ return Array.isArray(arr) ? arr.filter(r=>Array.isArray(r)).map(r=>r.map(c=>c==null?"":String(c))) : []; }
 
@@ -159,6 +164,28 @@ function populateFilters(){
   btnApply.onclick = applyFilters;
   btnReset.onclick = resetFilters;
 }
+function initSearchAndEntries() {
+  const search = document.getElementById("searchBar");
+  const entries = document.getElementById("entriesSelect");
+
+  if (entries) {
+    // reflect current rowsPerPage on first load
+    entries.value = String(rowsPerPage);
+    entries.addEventListener("change", () => {
+      rowsPerPage = parseInt(entries.value, 10) || 25;
+      currentPage = 1;
+      renderTable();
+    });
+  }
+
+  if (search) {
+    search.addEventListener("input", () => {
+      currentSearchTerm = (search.value || "").trim().toLowerCase();
+      // re-apply full filter pipeline so search stacks with other filters
+      applyFilters();
+    });
+  }
+}
 
 function applyFilters(){
   const orderNo = (filterOrderNo.value||"").toLowerCase();
@@ -171,17 +198,24 @@ function applyFilters(){
     const od = new Date(r["Order Date"]||"");
     const dd = new Date(r["Delivery Date"]||"");
     const st = r["Status"] ?? "";
-    return (!orderNo || String(r["Order No"]||"").toLowerCase().includes(orderNo))
-        && (!sheet || r._sheet===sheet)
-        && (!unit || r["Unit"]===unit)
-        && (!chosen.length || chosen.includes(st))
-        && (!oS || od>=new Date(oS))
-        && (!oE || od<=new Date(oE+"T23:59:59"))
-        && (!dS || dd>=new Date(dS))
-        && (!dE || dd<=new Date(dE+"T23:59:59"));
+    const matchesFilters =
+      (!orderNo || String(r["Order No"]||"").toLowerCase().includes(orderNo)) &&
+      (!sheet || r._sheet===sheet) &&
+      (!unit || r["Unit"]===unit) &&
+      (!chosen.length || chosen.includes(st)) &&
+      (!oS || od>=new Date(oS)) &&
+      (!oE || od<=new Date(oE+"T23:59:59")) &&
+      (!dS || dd>=new Date(dS)) &&
+      (!dE || dd<=new Date(dE+"T23:59:59"));
+
+    if (!matchesFilters) return false;
+
+    // 🔎 universal search: applies on top of other filters
+    if (!currentSearchTerm) return true;
+    return Object.values(r).some(v => String(v||"").toLowerCase().includes(currentSearchTerm));
   });
 
-  currentPage=1;
+  currentPage = 1;
   renderTable();
 }
 
