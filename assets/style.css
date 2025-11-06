@@ -97,3 +97,8 @@ body {
 .clickable { cursor:pointer; color:#007bff; font-weight:600; }
 .clickable:hover { text-decoration: underline; }
 
+#searchEntriesBar input[type="text"] { padding:6px 8px; border:1px solid #ccc; border-radius:4px; }
+#entriesSelect { padding:4px 6px; border:1px solid #ccc; border-radius:4px; }
+.pagination button { margin:0 2px; padding:5px 10px; border:1px solid #007bff; border-radius:4px; background:#fff; color:#007bff; cursor:pointer; }
+.pagination button.active { background:#007bff; color:#fff; }
+.pagination button[disabled]{ opacity:.4; cursor:not-allowed; }
