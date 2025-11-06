@@ -1,329 +1,132 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <base target="_top">
-    <style>
-      body {
-        font-family: 'Segoe UI', sans-serif;
-        background: #f3f4f6;
-        padding: 30px;
-        color: #333;
-      }
+<head>
+<meta charset="utf-8">
+<title>Vasansi Enterprise Application — Sample Form</title>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:,">
+<style>
+  body { font-family: Segoe UI, sans-serif; background:#f7f7f7; }
+  .card { max-width:900px; margin:20px auto; background:#fff; padding:20px 30px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+  label { display:block; margin-top:10px; font-weight:600; }
+  input, select, textarea { width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; margin-top:4px; }
+  button { background:#007bff; color:#fff; border:none; border-radius:6px; padding:10px 16px; margin-top:15px; cursor:pointer; }
+  button:hover { background:#0069d9; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Designer Sample Creation Form</h2>
 
-      .container {
-        background: white;
-        border-radius: 14px;
-        padding: 30px 40px;
-        max-width: 950px;
-        margin: auto;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-      }
+  <form id="sampleForm">
+    <label>Designer Name</label>
+    <select id="designerName" required></select>
 
-      h2 {
-        text-align: center;
-        margin-bottom: 25px;
-        font-weight: 600;
-        color: #007bff;
-      }
+    <label>Unit</label>
+    <select id="unit" required></select>
 
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
+    <label>Product Name</label>
+    <select id="productName" required></select>
 
-      td {
-        padding: 8px 10px;
-        vertical-align: middle;
-      }
+    <label>Print Style ID</label>
+    <select id="printStyleId"></select>
 
-      label {
-        font-weight: 600;
-        display: block;
-        margin-bottom: 4px;
-        color: #444;
-      }
+    <label>Print Style No</label>
+    <select id="printStyleNo"></select>
 
-      input, select, textarea {
-        width: 100%;
-        padding: 8px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        box-sizing: border-box;
-        transition: border-color 0.2s;
-      }
+    <label>Design No</label>
+    <input type="text" id="designNo" required>
 
-      input:focus, select:focus, textarea:focus {
-        outline: none;
-        border-color: #007bff;
-      }
+    <label>Color</label>
+    <input type="text" id="color">
 
-      textarea {
-        resize: vertical;
-      }
+    <label>Top Length</label>
+    <input type="text" id="topLength">
 
-      .section {
-        margin-top: 25px;
-      }
+    <label>Bottom Length</label>
+    <input type="text" id="bottomLength">
 
-      h3 {
-        background: #007bff;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 16px;
-        margin-top: 30px;
-      }
+    <label>Details</label>
+    <textarea id="details" rows="3"></textarea>
 
-      .row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  align-items: center;
+    <label>Product Image</label>
+    <input type="file" id="productImage" accept="image/*">
+
+    <button type="button" onclick="submitSample()">Save Sample</button>
+  </form>
+
+  <p id="msg" style="margin-top:10px; font-weight:600;"></p>
+</div>
+
+<script>
+// ====== Fetch Dropdowns ======
+window.onload = function() {
+  google.script.run.withSuccessHandler(populateDropdowns).getDropdownValues();
+};
+
+function populateDropdowns(data) {
+  const map = {
+    designerName: data.designers,
+    unit: data.units,
+    productName: data.products,
+    printStyleId: data.printStyleIDs,
+    printStyleNo: data.printStyleNos
+  };
+  Object.keys(map).forEach(id => {
+    const select = document.getElementById(id);
+    select.innerHTML = "<option value=''>Select</option>" + map[id].map(v=>`<option>${v}</option>`).join("");
+  });
 }
 
-.row input[type="text"] {
-  flex: 1 1 50%;
+// ====== Convert image to Base64 ======
+function getBase64(file) {
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
-.row .file-box {
-  flex: 1 1 50%;
+// ====== Submit Form ======
+async function submitSample() {
+  const msg = document.getElementById("msg");
+  msg.textContent = "Uploading... Please wait.";
+
+  const file = document.getElementById("productImage").files[0];
+  let fileData = null, fileType = "", fileName = "";
+
+  if (file) {
+    fileData = await getBase64(file);
+    fileType = file.type;
+    fileName = file.name;
+  }
+
+  const data = {
+    designerName: document.getElementById("designerName").value,
+    unit: document.getElementById("unit").value,
+    productName: document.getElementById("productName").value,
+    printStyleId: document.getElementById("printStyleId").value,
+    printStyleNo: document.getElementById("printStyleNo").value,
+    designNo: document.getElementById("designNo").value,
+    color: document.getElementById("color").value,
+    topLength: document.getElementById("topLength").value,
+    bottomLength: document.getElementById("bottomLength").value,
+    details: document.getElementById("details").value,
+    productImageData: fileData,
+    productImageType: fileType,
+    productImageName: fileName,
+    materials: [],
+    attachments: []
+  };
+
+  google.script.run.withSuccessHandler(res=>{
+    msg.textContent = res;
+    document.getElementById("sampleForm").reset();
+  }).withFailureHandler(err=>{
+    msg.textContent = "❌ Error: " + err.message;
+  }).submitForm(data);
 }
-
-.row .file-box input[type="file"] {
-  width: 100%;
-  background: #f8f9fa;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px dashed #bbb;
-  cursor: pointer;
-}
-
-.row .file-box input[type="file"]:hover {
-  border-color: #007bff;
-}
-
-      .file-input {
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px dashed #bbb;
-      }
-
-      .file-input:hover {
-        border-color: #007bff;
-      }
-
-      button {
-        margin-top: 25px;
-        width: 100%;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: all 0.3s;
-      }
-
-      button.active { background-color: #28a745; }
-      button:disabled { background: #ccc; cursor: not-allowed; }
-
-      #msg {
-        text-align: center;
-        font-weight: 500;
-        margin-top: 15px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <form id="entryForm">
-        <h2>Create New Sample</h2>
-
-        <table>
-          <tr>
-            <td><label>Designer Name*</label></td>
-            <td><select id="designerName" required></select></td>
-            <td><label>Unit*</label></td>
-            <td><select id="unit" required></select></td>
-          </tr>
-          <tr>
-            <td><label>Product Name*</label></td>
-            <td><select id="productName" required></select></td>
-            <td><label>Print Style ID*</label></td>
-            <td><select id="printStyleId" required></select></td>
-          </tr>
-          <tr>
-            <td><label>Print Style No*</label></td>
-            <td><select id="printStyleNo" required></select></td>
-            <td><label>Design No*</label></td>
-            <td><input type="text" id="designNo" required></td>
-          </tr>
-          <tr>
-            <td><label>Color*</label></td>
-            <td><input type="text" id="color" required></td>
-            <td><label>Top Length*</label></td>
-            <td><input type="number" id="topLength" placeholder="In CM" step="0.01" required></td>
-          </tr>
-          <tr>
-            <td><label>Bottom Length*</label></td>
-            <td><input type="number" id="bottomLength" placeholder="In CM" step="0.01" required></td>
-            <td><label>Details</label></td>
-            <td><textarea id="details" rows="2"></textarea></td>
-          </tr>
-          <tr>
-            <td><label>Product Image*</label></td>
-            <td colspan="3"><input type="file" id="productImage" accept="image/*" required class="file-input"></td>
-          </tr>
-        </table>
-
-        <h3>Materials</h3>
-        <div id="materials"></div>
-
-        <h3>Attachments</h3>
-        <div id="attachments"></div>
-
-        <button id="submitBtn" type="submit" disabled>Save</button>
-        <p id="msg"></p>
-      </form>
-    </div>
-
-    <script>
-      // Fetch dropdowns
-      google.script.run.withSuccessHandler(populateDropdowns).getDropdownValues();
-
-      const requiredFields = [
-        "designerName","unit","productName","printStyleId","printStyleNo",
-        "designNo","color","topLength","bottomLength","productImage"
-      ];
-      const form = document.getElementById("entryForm");
-      const btn = document.getElementById("submitBtn");
-      const msg = document.getElementById("msg");
-
-      // Build Materials section
-      const matDiv = document.getElementById("materials");
-      for (let i=1;i<=5;i++) {
-        const row = document.createElement("div");
-        row.className = "row";
-        row.innerHTML = `
-          <input type="text" id="matName${i}" placeholder="Material ${i} Name">
-          <input type="text" id="matQty${i}" placeholder="Qty">
-        `;
-        matDiv.appendChild(row);
-      }
-
-      // Build Attachments section
-      const attDiv = document.getElementById("attachments");
-      for (let i=1;i<=5;i++) {
-        const row = document.createElement("div");
-        row.className = "row";
-        row.innerHTML = `
-          <input type="text" id="attName${i}" placeholder="Attachment ${i} Name">
-          <input type="file" id="attPhoto${i}" accept="image/*" class="file-input">
-        `;
-        attDiv.appendChild(row);
-      }
-
-      function populateDropdowns(data) {
-        fillDropdown("designerName", data.designers);
-        fillDropdown("unit", data.units);
-        fillDropdown("productName", data.products);
-        fillDropdown("printStyleId", data.printStyleIDs);
-        fillDropdown("printStyleNo", data.printStyleNos);
-      }
-
-      function fillDropdown(id, items) {
-        const select = document.getElementById(id);
-        select.innerHTML = '<option value="">Select...</option>';
-        items.forEach(v => {
-          const opt = document.createElement("option");
-          opt.value = v; opt.text = v;
-          select.appendChild(opt);
-        });
-      }
-
-      requiredFields.forEach(id => {
-        document.getElementById(id).addEventListener("input", checkRequired);
-        document.getElementById(id).addEventListener("change", checkRequired);
-      });
-
-      function checkRequired() {
-        const allFilled = requiredFields.every(id => {
-          const el = document.getElementById(id);
-          return el.type === "file" ? el.files.length > 0 : el.value.trim() !== "";
-        });
-        btn.disabled = !allFilled;
-        btn.classList.toggle("active", allFilled);
-      }
-
-      function toBase64(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = error => reject(error);
-        });
-      }
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        msg.textContent = "Saving...";
-
-        const fileInput = document.getElementById("productImage");
-        const file = fileInput.files[0];
-        const productImageData = await toBase64(file);
-
-        const materials = [];
-        for (let i=1;i<=5;i++) {
-          materials.push({
-            name: document.getElementById("matName"+i).value,
-            qty: document.getElementById("matQty"+i).value
-          });
-        }
-
-        const attachments = [];
-        for (let i=1;i<=5;i++) {
-          const name = document.getElementById("attName"+i).value;
-          const photoInput = document.getElementById("attPhoto"+i);
-          let photoData="", photoType="", photoName="";
-          if (photoInput.files.length>0) {
-            const file = photoInput.files[0];
-            photoData = await toBase64(file);
-            photoType = file.type;
-            photoName = file.name;
-          }
-          attachments.push({ name, photoData, photoType, photoName });
-        }
-
-        const formData = {
-          designerName: document.getElementById("designerName").value,
-          unit: document.getElementById("unit").value,
-          productName: document.getElementById("productName").value,
-          printStyleId: document.getElementById("printStyleId").value,
-          printStyleNo: document.getElementById("printStyleNo").value,
-          designNo: document.getElementById("designNo").value,
-          color: document.getElementById("color").value,
-          topLength: document.getElementById("topLength").value,
-          bottomLength: document.getElementById("bottomLength").value,
-          details: document.getElementById("details").value,
-          productImageData,
-          productImageType: file.type,
-          productImageName: file.name,
-          materials,
-          attachments
-        };
-
-        google.script.run
-          .withSuccessHandler(r => {
-            msg.textContent = r;
-            form.reset();
-            btn.disabled = true;
-            btn.classList.remove("active");
-          })
-          .withFailureHandler(err => msg.textContent = "❌ " + err.message)
-          .submitForm(formData);
-      });
-    </script>
-  </body>
+</script>
+</body>
 </html>
