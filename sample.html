@@ -169,10 +169,10 @@
     </div>
 
     <script>
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzeb_JEU1OF6z_amI8ALAUtuJVMVAm_hqAYoYlY6nO3gZ0o08ICR-5re8ElGFnjtPI/exec";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzeb_JEU1OF6z_amI8ALAUtuJVMVAm_hqAYoYlY6nO3gZ0o08ICR-5re8ElGFnjtPI.exec";
      document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const res = await fetch("https://script.google.com/macros/s/AKfycbwzeb_JEU1OF6z_amI8ALAUtuJVMVAm_hqAYoYlY6nO3gZ0o08ICR-5re8ElGFnjtPI/exec?action=getDropdownValues");
+    const res = await fetch("https://script.google.com/macros/s/AKfycbwzeb_JEU1OF6z_amI8ALAUtuJVMVAm_hqAYoYlY6nO3gZ0o08ICR-5re8ElGFnjtPI.exec?action=getDropdownValues");
     const data = await res.json();
     populateDropdowns(data);
   } catch (err) {
