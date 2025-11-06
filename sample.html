@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", loadDropdowns);
       }
 
       // === JSONP save handler ===
-form.addEventListener("submit", async e => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   msg.textContent = "Saving...";
   btn.disabled = true;
@@ -313,14 +313,19 @@ form.addEventListener("submit", async e => {
       body: JSON.stringify({ action: "submitSample", formData })
     });
     const json = await res.json();
-    if (json.success) msg.textContent = "✅ Saved successfully!";
-    else msg.textContent = "❌ " + (json.error || "Failed to save");
+    if (json.success) {
+      msg.textContent = "✅ Saved successfully!";
+      form.reset();
+    } else {
+      msg.textContent = "❌ " + (json.error || "Failed to save");
+    }
   } catch (err) {
     msg.textContent = "❌ " + err.message;
   } finally {
     btn.disabled = false;
   }
 });
+
   // inject <script> to call Apps Script
   const s = document.createElement("script");
   s.src = `${SCRIPT_URL}?action=submitSample&data=${q}&callback=${cbName}`;
