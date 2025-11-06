@@ -169,9 +169,17 @@
     </div>
 
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        google.script.run.withSuccessHandler(populateDropdowns).getDropdownValues();
-      });
+     document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const res = await fetch("https://script.google.com/macros/s/AKfycbzVUlNzd5oWtAXjI57PtK-NAMYyiq10e8FaBzwcgfSCPrDgKy5bKfKWeu1SCP8jUWqc/exec?action=getDropdownValues");
+    const data = await res.json();
+    populateDropdowns(data);
+  } catch (err) {
+    console.error("Dropdown load failed:", err);
+    document.getElementById("msg").textContent = "❌ Failed to load dropdowns.";
+  }
+});
+
 
       const requiredFields = [
         "designerName","unit","productName","printStyleId","printStyleNo",
