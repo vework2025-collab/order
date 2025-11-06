@@ -173,8 +173,10 @@
 // ✅ JSONP dropdown loader
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWq6umwvKKy23eJ3eDO6ic_J2R5Ir5jOpkNDW0AG7EEVJAyAqiJvK-r_T1VQZrAA32/exec";
 
-// dropdown loader using POST (robust)
+// ===== Load dropdowns from Apps Script (POST) =====
 async function loadDropdowns() {
+  const msgEl = document.getElementById("msg");
+  msgEl.textContent = "Loading dropdowns...";
   try {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
@@ -182,13 +184,32 @@ async function loadDropdowns() {
       body: JSON.stringify({ action: "getDropdownValues" })
     });
     const data = await res.json();
-    populateDropdowns(data);
+
+    // Fill each <select>
+    const map = {
+      designerName : data.designers || [],
+      unit         : data.units || [],
+      productName  : data.products || [],
+      printStyleId : data.printStyleIDs || [],
+      printStyleNo : data.printStyleNos || []
+    };
+
+    Object.keys(map).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = "<option value=''>Select</option>" +
+        map[id].map(v => `<option>${v}</option>`).join("");
+    });
+
+    msgEl.textContent = "";
   } catch (err) {
     console.error("Dropdown load failed:", err);
-    document.getElementById("msg").textContent = "❌ Failed to load dropdowns";
+    msgEl.textContent = "❌ Failed to load dropdowns";
   }
 }
+
 document.addEventListener("DOMContentLoaded", loadDropdowns);
+
 
 
 
