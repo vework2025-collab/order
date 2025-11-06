@@ -169,7 +169,7 @@
     </div>
 
     <script>
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8GO3qHmcoZDktQ4SwDSey7PpHDvfEbyPX2o7kEYxF2QcBB-88rB2LBggtH1qg-Dp6/exec";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxaDA4zHRSMx2DZHpI24OYMdvJPwGCAhnRbp7Ibg7vxNhh_LeVJKHXryUyRQb9b783B/exec";
      
 // ✅ JSONP dropdown loader
 // === JSONP dropdown loader ===
@@ -282,13 +282,18 @@ window.addEventListener("DOMContentLoaded", () => {
       }
 
       // === JSONP save handler ===
-form.addEventListener("submit", async (e) => {
+form.addEventListener("submit", async e => {
   e.preventDefault();
   msg.textContent = "Saving...";
   btn.disabled = true;
 
-  // collect form data
-  const dataObj = {
+  const fileFront = document.getElementById("productImage").files[0];
+  const fileBack  = document.getElementById("productImageBack")?.files[0];
+
+  const productImageData     = fileFront ? await toBase64(fileFront) : "";
+  const productImageBackData = fileBack  ? await toBase64(fileBack)  : "";
+
+  const formData = {
     designerName: designerName.value,
     unit: unit.value,
     productName: productName.value,
@@ -298,27 +303,32 @@ form.addEventListener("submit", async (e) => {
     color: color.value,
     topLength: topLength.value,
     bottomLength: bottomLength.value,
-    details: details.value
+    details: details.value,
+    productImageData,
+    productImageBackData,
+    productImageType: fileFront ? fileFront.type : "",
+    productImageName: fileFront ? fileFront.name : "",
+    productImageBackType: fileBack ? fileBack.type : "",
+    productImageBackName: fileBack ? fileBack.name : "",
+    materials: [],
+    attachments: []
   };
 
-  // convert to JSON and URI-encode
-  const q = encodeURIComponent(JSON.stringify(dataObj));
-  const cbName = "cbSave" + Date.now();
-
-  // define callback
-  window[cbName] = function (res) {
-    console.log("Save response:", res);
-    if (res && res.success) {
-      msg.textContent = "✅ Saved successfully!";
-      form.reset();
-      btn.classList.remove("active");
-      btn.disabled = true;
-    } else {
-      msg.textContent = "❌ " + (res.error || "Save failed");
-    }
-    delete window[cbName];
-  };
-
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "submitSample", formData })
+    });
+    const json = await res.json();
+    if (json.success) msg.textContent = "✅ Saved successfully!";
+    else msg.textContent = "❌ " + (json.error || "Failed to save");
+  } catch (err) {
+    msg.textContent = "❌ " + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
   // inject <script> to call Apps Script
   const s = document.createElement("script");
   s.src = `${SCRIPT_URL}?action=submitSample&data=${q}&callback=${cbName}`;
