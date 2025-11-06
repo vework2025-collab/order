@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
   <head>
     <base target="_top">
@@ -169,9 +169,11 @@
     </div>
 
     <script>
+      const SCRIPT_URL = "const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVUlNzd5oWtAXjI57PtK-NAMYyiq10e8FaBzwcgfSCPrDgKy5bKfKWeu1SCP8jUWqc/exec";
      document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const res = await fetch("https://script.google.com/macros/s/AKfycbzVUlNzd5oWtAXjI57PtK-NAMYyiq10e8FaBzwcgfSCPrDgKy5bKfKWeu1SCP8jUWqc/exec?action=getDropdowns");
+    const res = await fetch("const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVUlNzd5oWtAXjI57PtK-NAMYyiq10e8FaBzwcgfSCPrDgKy5bKfKWeu1SCP8jUWqc/exec?action=getDropdowns")";
+/exec?action=getDropdowns");
     const data = await res.json();
     populateDropdowns(data);
   } catch (err) {
@@ -256,67 +258,59 @@
       }
 
       form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        msg.textContent = "Saving...";
+  e.preventDefault();
+  btn.disabled = true;
+  msg.textContent = "Saving...";
 
-        const fileFront = document.getElementById("productImage").files[0];
-        const fileBack = document.getElementById("productImageBack").files[0];
-        const productImageData = fileFront ? await toBase64(fileFront) : "";
-        const productImageBackData = fileBack ? await toBase64(fileBack) : "";
+  // Front & back images -> base64
+  const fileFront = document.getElementById("productImage").files[0];
+  const fileBack  = document.getElementById("productImageBack")?.files[0];
+  const productImageData      = fileFront ? await toBase64(fileFront) : "";
+  const productImageBackData  = fileBack  ? await toBase64(fileBack)  : "";
 
-        const materials = [];
-        for (let i=1;i<=5;i++) {
-          materials.push({
-            name: document.getElementById("matName"+i).value,
-            qty: document.getElementById("matQty"+i).value
-          });
-        }
+  const formData = {
+    designerName: designerName.value,
+    unit: unit.value,
+    productName: productName.value,
+    printStyleId: printStyleId.value,
+    printStyleNo: printStyleNo.value,
+    designNo: designNo.value,
+    color: color.value,
+    topLength: topLength.value,
+    bottomLength: bottomLength.value,
+    details: details.value,
+    productImageData,
+    productImageBackData,
+    productImageType: fileFront ? fileFront.type : "",
+    productImageName: fileFront ? fileFront.name : "",
+    productImageBackType: fileBack ? fileBack.type : "",
+    productImageBackName: fileBack ? fileBack.name : "",
+    // If you’re collecting materials/attachments, include them here too
+    materials: [], 
+    attachments: []
+  };
 
-        const attachments = [];
-        for (let i=1;i<=5;i++) {
-          const name = document.getElementById("attName"+i).value;
-          const photoInput = document.getElementById("attPhoto"+i);
-          let photoData="", photoType="", photoName="";
-          if (photoInput.files.length>0) {
-            const file = photoInput.files[0];
-            photoData = await toBase64(file);
-            photoType = file.type;
-            photoName = file.name;
-          }
-          attachments.push({ name, photoData, photoType, photoName });
-        }
-
-        const formData = {
-          designerName: designerName.value,
-          unit: unit.value,
-          productName: productName.value,
-          printStyleId: printStyleId.value,
-          printStyleNo: printStyleNo.value,
-          designNo: designNo.value,
-          color: color.value,
-          topLength: topLength.value,
-          bottomLength: bottomLength.value,
-          details: details.value,
-          productImageData,
-          productImageBackData,
-          productImageType: fileFront ? fileFront.type : "",
-          productImageName: fileFront ? fileFront.name : "",
-          productImageBackType: fileBack ? fileBack.type : "",
-          productImageBackName: fileBack ? fileBack.name : "",
-          materials,
-          attachments
-        };
-
-        google.script.run
-          .withSuccessHandler(r => {
-            msg.textContent = r;
-            form.reset();
-            btn.disabled = true;
-            btn.classList.remove("active");
-          })
-          .withFailureHandler(err => msg.textContent = "❌ " + err.message)
-          .submitForm(formData);
-      });
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "submitSample", formData })
+    });
+    const j = await res.json();
+    if (j.success) {
+      msg.textContent = "✅ Saved";
+      form.reset();
+      btn.disabled = true;
+      btn.classList.remove("active");
+    } else {
+      msg.textContent = "❌ " + (j.error || "Failed to save");
+    }
+  } catch (err) {
+    msg.textContent = "❌ " + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
     </script>
   </body>
 </html>
