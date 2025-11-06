@@ -106,10 +106,11 @@ function clean(arr){
 }
 
 function toThumb(url){
-  const m = (typeof url==="string") ? url.match(/[-\\w]{25,}/) : null;
-  const id = m? m[0] : null;
-  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w200-h200` : "";
+  const m = (typeof url==="string") ? url.match(/[-\w]{25,}/) : null;
+  const id = m ? m[0] : null;
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w200-h200` : url;
 }
+
 
 // ======= MAIN LOADER =======
 async function loadData(){
