@@ -146,6 +146,26 @@ async function loadData(){
     tbl.innerHTML=`<tr><td style="color:#b00020;font-weight:600">❌ ${e.message}</td></tr>`;
   }
 }
+function initSearchAndEntries() {
+  const searchInput = document.getElementById("searchBar");
+  const entriesSelect = document.getElementById("entriesSelect");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      const term = searchInput.value.trim().toLowerCase();
+      currentSearchTerm = term;
+      applyFilters(); // search integrates with all other filters
+    });
+  }
+
+  if (entriesSelect) {
+    entriesSelect.addEventListener("change", () => {
+      rowsPerPage = parseInt(entriesSelect.value, 10) || 25;
+      currentPage = 1;
+      renderTable();
+    });
+  }
+}
 
 function populateFilters(){
   const units = [...new Set(rows.map(r=>r["Unit"]).filter(Boolean))];
@@ -162,28 +182,6 @@ function populateFilters(){
 
   btnApply.onclick = applyFilters;
   btnReset.onclick = resetFilters;
-}
-function initSearchAndEntries() {
-  const search = document.getElementById("searchBar");
-  const entries = document.getElementById("entriesSelect");
-
-  if (entries) {
-    // reflect current rowsPerPage on first load
-    entries.value = String(rowsPerPage);
-    entries.addEventListener("change", () => {
-      rowsPerPage = parseInt(entries.value, 10) || 25;
-      currentPage = 1;
-      renderTable();
-    });
-  }
-
-  if (search) {
-    search.addEventListener("input", () => {
-      currentSearchTerm = (search.value || "").trim().toLowerCase();
-      // re-apply full filter pipeline so search stacks with other filters
-      applyFilters();
-    });
-  }
 }
 
 function applyFilters(){
