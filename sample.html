@@ -170,50 +170,41 @@
 
     <script>
      
-// ✅ JSONP dropdown loader
+<script>
+/* ===== CONFIG ===== */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWq6umwvKKy23eJ3eDO6ic_J2R5Ir5jOpkNDW0AG7EEVJAyAqiJvK-r_T1VQZrAA32/exec";
 
-// ===== Load dropdowns from Apps Script (POST) =====
-async function loadDropdowns() {
-  const msgEl = document.getElementById("msg");
-  msgEl.textContent = "Loading dropdowns...";
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "getDropdownValues" })
-    });
-    const data = await res.json();
-
-    // Fill each <select>
-    const map = {
-      designerName : data.designers || [],
-      unit         : data.units || [],
-      productName  : data.products || [],
-      printStyleId : data.printStyleIDs || [],
-      printStyleNo : data.printStyleNos || []
-    };
-
-    Object.keys(map).forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.innerHTML = "<option value=''>Select</option>" +
-        map[id].map(v => `<option>${v}</option>`).join("");
-    });
-
-    msgEl.textContent = "";
-  } catch (err) {
-    console.error("Dropdown load failed:", err);
-    msgEl.textContent = "❌ Failed to load dropdowns";
-  }
+/* ===== HELPERS ===== */
+function toBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
 }
 
-// ===== Build Materials & Attachments rows =====
-document.addEventListener("DOMContentLoaded", () => {
-  // Materials
+function populateDropdowns(data){
+  const map = {
+    designerName : data.designers || [],
+    unit         : data.units || [],
+    productName  : data.products || [],
+    printStyleId : data.printStyleIDs || [],
+    printStyleNo : data.printStyleNos || []
+  };
+  Object.entries(map).forEach(([id, arr])=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = "<option value=''>Select</option>" + arr.map(v=>`<option>${String(v)}</option>`).join("");
+  });
+}
+
+/* Build 5 rows each for Materials & Attachments */
+function buildDynamicRows(){
   const matDiv = document.getElementById("materials");
-  if (matDiv) {
-    for (let i = 1; i <= 5; i++) {
+  if (matDiv){
+    matDiv.innerHTML = "";
+    for(let i=1;i<=5;i++){
       const row = document.createElement("div");
       row.className = "row";
       row.innerHTML = `
@@ -224,10 +215,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Attachments
   const attDiv = document.getElementById("attachments");
-  if (attDiv) {
-    for (let i = 1; i <= 5; i++) {
+  if (attDiv){
+    attDiv.innerHTML = "";
+    for(let i=1;i<=5;i++){
       const row = document.createElement("div");
       row.className = "row";
       row.innerHTML = `
@@ -237,147 +228,122 @@ document.addEventListener("DOMContentLoaded", () => {
       attDiv.appendChild(row);
     }
   }
-});
-
-      const requiredFields = [
-        "designerName","unit","productName","printStyleId","printStyleNo",
-        "designNo","color","topLength","bottomLength","productImage"
-      ];
-      const form = document.getElementById("entryForm");
-      const btn = document.getElementById("submitBtn");
-      const msg = document.getElementById("msg");
-
-      // Build Materials
-      const matDiv = document.getElementById("materials");
-      for (let i=1;i<=5;i++) {
-        const row = document.createElement("div");
-        row.className = "row";
-        row.innerHTML = `
-          <input type="text" id="matName${i}" placeholder="Material ${i} Name">
-          <input type="text" id="matQty${i}" placeholder="Qty">
-        `;
-        matDiv.appendChild(row);
-      }
-
-      // Build Attachments
-      const attDiv = document.getElementById("attachments");
-      for (let i=1;i<=5;i++) {
-        const row = document.createElement("div");
-        row.className = "row";
-        row.innerHTML = `
-          <input type="text" id="attName${i}" placeholder="Attachment ${i} Name">
-          <input type="file" id="attPhoto${i}" accept="image/*" class="file-input">
-        `;
-        attDiv.appendChild(row);
-      }
-
-      function populateDropdowns(data) {
-  const map = {
-    designerName: data.designers,
-    unit: data.units,
-    productName: data.products,
-    printStyleId: data.printStyleIDs,
-    printStyleNo: data.printStyleNos
-  };
-  Object.keys(map).forEach(id => {
-    const select = document.getElementById(id);
-    select.innerHTML = "<option value=''>Select</option>" +
-      map[id].map(v => `<option>${v}</option>`).join("");
-  });
 }
 
-      function fillDropdown(id, items) {
-        const select = document.getElementById(id);
-        select.innerHTML = '<option value="">Select...</option>';
-        if (!Array.isArray(items)) return;
-        items.forEach(v => {
-          const opt = document.createElement("option");
-          opt.value = v; opt.text = v;
-          select.appendChild(opt);
-        });
-      }
+/* POST to Apps Script to get dropdown values */
+async function loadDropdowns(){
+  const msgEl = document.getElementById("msg");
+  if (msgEl) msgEl.textContent = "Loading dropdowns...";
+  const res = await fetch(SCRIPT_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ action:"getDropdownValues" })
+  });
+  const data = await res.json();
+  populateDropdowns(data);
+  if (msgEl) msgEl.textContent = "";
+}
 
-      requiredFields.forEach(id => {
-        document.getElementById(id).addEventListener("input", checkRequired);
-        document.getElementById(id).addEventListener("change", checkRequired);
-      });
-
-      function checkRequired() {
-        const allFilled = requiredFields.every(id => {
-          const el = document.getElementById(id);
-          return el.type === "file" ? el.files.length > 0 : el.value.trim() !== "";
-        });
-        btn.disabled = !allFilled;
-        btn.classList.toggle("active", allFilled);
-      }
-
-      function toBase64(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = error => reject(error);
-        });
-      }
-
-      // === JSONP save handler ===
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  msg.textContent = "Saving...";
-  btn.disabled = true;
-
-  const fileFront = document.getElementById("productImage").files[0];
-  const fileBack  = document.getElementById("productImageBack")?.files[0];
-
-  const productImageData     = fileFront ? await toBase64(fileFront) : "";
-  const productImageBackData = fileBack  ? await toBase64(fileBack)  : "";
-
-  const formData = {
-    designerName: designerName.value,
-    unit: unit.value,
-    productName: productName.value,
-    printStyleId: printStyleId.value,
-    printStyleNo: printStyleNo.value,
-    designNo: designNo.value,
-    color: color.value,
-    topLength: topLength.value,
-    bottomLength: bottomLength.value,
-    details: details.value,
-    productImageData,
-    productImageBackData,
-    productImageType: fileFront ? fileFront.type : "",
-    productImageName: fileFront ? fileFront.name : "",
-    productImageBackType: fileBack ? fileBack.type : "",
-    productImageBackName: fileBack ? fileBack.name : "",
-    materials: [],
-    attachments: []
-  };
-
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "submitSample", formData })
+/* Gather materials & attachments arrays */
+async function gatherMaterialsAndAttachments(){
+  const materials = [];
+  for (let i=1;i<=5;i++){
+    materials.push({
+      name: (document.getElementById("matName"+i)?.value || ""),
+      qty : (document.getElementById("matQty"+i)?.value || "")
     });
-    const json = await res.json();
-    if (json.success) {
-      msg.textContent = "✅ Saved successfully!";
-      form.reset();
-    } else {
-      msg.textContent = "❌ " + (json.error || "Failed to save");
-    }
-  } catch (err) {
-    msg.textContent = "❌ " + err.message;
-  } finally {
-    btn.disabled = false;
   }
-});
 
-  // inject <script> to call Apps Script
-  const s = document.createElement("script");
-  s.src = `${SCRIPT_URL}?action=submitSample&data=${q}&callback=${cbName}`;
-  document.body.appendChild(s);
+  const attachments = [];
+  for (let i=1;i<=5;i++){
+    const name = (document.getElementById("attName"+i)?.value || "");
+    const fInp = document.getElementById("attPhoto"+i);
+    let photoData="", photoType="", photoName="";
+    if (fInp && fInp.files && fInp.files[0]){
+      const f = fInp.files[0];
+      photoData = await toBase64(f);
+      photoType = f.type;
+      photoName = f.name;
+    }
+    attachments.push({ name, photoData, photoType, photoName });
+  }
+
+  return { materials, attachments };
+}
+
+/* ===== MAIN WIRING ===== */
+document.addEventListener("DOMContentLoaded", () => {
+  // build dynamic UI sections
+  buildDynamicRows();
+  // load dropdowns
+  loadDropdowns().catch(err=>{
+    console.error("Dropdown load failed:", err);
+    const msgEl = document.getElementById("msg");
+    if (msgEl) msgEl.textContent = "❌ Failed to load dropdowns";
+  });
+
+  // form submit handler (POST)
+  const form = document.getElementById("entryForm");
+  const btn  = document.getElementById("submitBtn");
+  const msg  = document.getElementById("msg");
+
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = "Saving...";
+
+    const fileFront = document.getElementById("productImage")?.files[0] || null;
+    const fileBack  = document.getElementById("productImageBack")?.files[0] || null;
+
+    const productImageData     = fileFront ? await toBase64(fileFront) : "";
+    const productImageBackData = fileBack  ? await toBase64(fileBack)  : "";
+
+    const { materials, attachments } = await gatherMaterialsAndAttachments();
+
+    const formData = {
+      designerName: document.getElementById("designerName")?.value || "",
+      unit: document.getElementById("unit")?.value || "",
+      productName: document.getElementById("productName")?.value || "",
+      printStyleId: document.getElementById("printStyleId")?.value || "",
+      printStyleNo: document.getElementById("printStyleNo")?.value || "",
+      designNo: document.getElementById("designNo")?.value || "",
+      color: document.getElementById("color")?.value || "",
+      topLength: document.getElementById("topLength")?.value || "",
+      bottomLength: document.getElementById("bottomLength")?.value || "",
+      details: document.getElementById("details")?.value || "",
+      productImageData,
+      productImageBackData,
+      productImageType: fileFront ? fileFront.type : "",
+      productImageName: fileFront ? fileFront.name : "",
+      productImageBackType: fileBack ? fileBack.type : "",
+      productImageBackName: fileBack ? fileBack.name : "",
+      materials,
+      attachments
+    };
+
+    try{
+      const res = await fetch(SCRIPT_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ action:"submitSample", formData })
+      });
+      const j = await res.json();
+      if (j.success){
+        if (msg) msg.textContent = "✅ Saved successfully!";
+        form.reset();
+        // rebuild rows to clear file inputs nicely
+        buildDynamicRows();
+      } else {
+        if (msg) msg.textContent = "❌ " + (j.error || "Failed to save");
+      }
+    }catch(err){
+      if (msg) msg.textContent = "❌ " + err.message;
+      console.error(err);
+    }finally{
+      if (btn) btn.disabled = false;
+    }
+  });
 });
-   </script>
+</script>
   </body>
 </html>
