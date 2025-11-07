@@ -80,27 +80,53 @@ h3{background:#007bff;color:#fff;padding:6px 10px;border-radius:4px;font-size:16
 </div>
 
 <script>
-function buildDynamicRows(){
-  const mat=document.getElementById("materials");
-  mat.innerHTML="";
-  for(let i=1;i<=5;i++){
-    const row=document.createElement("div");
-    row.className="row";
-    row.innerHTML=`<input placeholder="Material ${i} Name">
-                   <input placeholder="Qty">`;
-    mat.appendChild(row);
-  }
-  const att=document.getElementById("attachments");
-  att.innerHTML="";
-  for(let i=1;i<=5;i++){
-    const row=document.createElement("div");
-    row.className="row";
-    row.innerHTML=`<input placeholder="Attachment ${i} Name">
-                   <input type="file" accept="image/*">`;
-    att.appendChild(row);
-  }
+const SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwpbCvnRpjaMIQi-SCWMNcIMgJXDqrCr3Y5K4uZ-OZpQ35GuBmoejLeC1MY5TvR0rMK/exec";
+
+/* === JSONP dropdown loader === */
+function loadDropdownsJSONP() {
+  const msg = document.getElementById("msg");
+  if (msg) msg.textContent = "Loading dropdowns...";
+  const cb = "cbDropdown_" + Date.now();
+
+  window[cb] = function (data) {
+    console.log("✅ Dropdown data received:", data);
+    const map = {
+      designerName: data.designers || [],
+      unit: data.units || [],
+      productName: data.products || [],
+      printStyleId: data.printStyleIDs || [],
+      printStyleNo: data.printStyleNos || [],
+    };
+    for (const [id, arr] of Object.entries(map)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.innerHTML =
+        "<option value=''>Select</option>" +
+        arr.map((v) => `<option>${String(v)}</option>`).join("");
+    }
+    if (msg) msg.textContent = "";
+    const s = document.getElementById(cb);
+    if (s) s.remove();
+    delete window[cb];
+  };
+
+  const s = document.createElement("script");
+  s.id = cb;
+  s.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
+  s.onerror = () => {
+    if (msg) msg.textContent = "❌ Failed to load dropdowns";
+  };
+  document.body.appendChild(s);
 }
-document.addEventListener("DOMContentLoaded", buildDynamicRows);
+
+/* === Initialise everything === */
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("🌍 Page loaded, building rows and fetching dropdowns");
+  buildDynamicRows();        // ← you already know this works
+  loadDropdownsJSONP();      // ← now it will fill dropdowns
+});
 </script>
+
 </body>
 </html>
