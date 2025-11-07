@@ -81,82 +81,15 @@
   <div class="container">
     <h1>Designer Sample Creation Form</h1>
 
-    <form id="entryForm">
-      <div class="row">
-        <div style="flex:1">
-          <label for="designerName">Designer Name*</label>
-          <select id="designerName" required></select>
-        </div>
-        <div style="flex:1">
-          <label for="unit">Unit*</label>
-          <select id="unit" required></select>
-        </div>
-      </div>
-
-      <div class="row">
-        <div style="flex:1">
-          <label for="productName">Product Name*</label>
-          <select id="productName" required></select>
-        </div>
-        <div style="flex:1">
-          <label for="printStyleId">Print Style ID*</label>
-          <select id="printStyleId" required></select>
-        </div>
-      </div>
-
-      <div class="row">
-        <div style="flex:1">
-          <label for="printStyleNo">Print Style No*</label>
-          <select id="printStyleNo" required></select>
-        </div>
-        <div style="flex:1">
-          <label for="designNo">Design No*</label>
-          <input type="text" id="designNo" required>
-        </div>
-      </div>
-
-      <div class="row">
-        <div style="flex:1">
-          <label for="color">Color*</label>
-          <input type="text" id="color" required>
-        </div>
-        <div style="flex:1">
-          <label for="topLength">Top Length*</label>
-          <input type="text" id="topLength" placeholder="In CM">
-        </div>
-      </div>
-
-      <div class="row">
-        <div style="flex:1">
-          <label for="bottomLength">Bottom Length*</label>
-          <input type="text" id="bottomLength" placeholder="In CM">
-        </div>
-        <div style="flex:1">
-          <label for="details">Details</label>
-          <textarea id="details"></textarea>
-        </div>
-      </div>
-
-      <div class="row">
-        <div style="flex:1">
-          <label>Product Image (Front)*</label>
-          <input type="file" id="productImage" accept="image/*" class="file-input">
-        </div>
-        <div style="flex:1">
-          <label>Product Image (Back)</label>
-          <input type="file" id="productImageBack" accept="image/*" class="file-input">
-        </div>
-      </div>
-
-      <h3>Materials</h3>
-      <div id="materials"></div>
-
-      <h3>Attachments</h3>
-      <div id="attachments"></div>
-
-      <p id="msg"></p>
-      <button id="submitBtn" type="submit">Save</button>
-    </form>
+    <form id="entryForm"
+      action="https://script.google.com/macros/s/AKfycbwpbCvnRpjaMIQi-SCWMNcIMgJXDqrCr3Y5K4uZ-OZpQ35GuBmoejLeC1MY5TvR0rMK/exec"
+      method="POST"
+      enctype="multipart/form-data"
+      target="uploadFrame"
+      novalidate>
+<iframe name="uploadFrame" style="display:none"></iframe>
+<button id="submitBtn" type="submit">Save</button>
+</form>
   </div>
 
   <script>
