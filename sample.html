@@ -148,44 +148,51 @@ function buildDynamicRows() {
 
 
 /* ---------- POPULATE DROPDOWNS ---------- */
-function populateDropdowns(data) {
-  console.log("✅ Populating dropdowns:", data);
+<script>
+function populateDropdowns(data){
+  console.log("✅ JSONP data received:", data);
   const map = {
-    designerName: data?.designers || [],
-    unit: data?.units || [],
-    productName: data?.products || [],
-    printStyleId: data?.printStyleIDs || [],
-    printStyleNo: data?.printStyleNos || []
+    designerName : data.designers || [],
+    unit         : data.units || [],
+    productName  : data.products || [],
+    printStyleId : data.printStyleIDs || [],
+    printStyleNo : data.printStyleNos || []
   };
   for (const [id, arr] of Object.entries(map)) {
     const el = document.getElementById(id);
     if (!el) continue;
-    el.innerHTML =
-      "<option value=''>Select</option>" +
+    el.innerHTML = "<option value=''>Select</option>" +
       arr.map(v => `<option>${String(v)}</option>`).join("");
   }
 }
 
-
-/* ---------- LOAD DROPDOWNS VIA JSONP ---------- */
-function loadDropdownsJSONP() {
+function loadDropdownsJSONP(){
   const msg = document.getElementById("msg");
   if (msg) msg.textContent = "Loading dropdowns...";
+
   const cb = "cbDropdown_" + Date.now();
-  window[cb] = function (data) {
+  console.log("🔹 Requesting dropdowns via:", `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`);
+
+  // define callback before loading
+  window[cb] = function(data){
     populateDropdowns(data);
     if (msg) msg.textContent = "";
     delete window[cb];
-    const s = document.getElementById(cb);
-    if (s) s.remove();
+    const scr = document.getElementById(cb);
+    if (scr) scr.remove();
   };
+
   const s = document.createElement("script");
   s.id = cb;
   s.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
-  s.onerror = function () {
-    if (msg) msg.textContent = "❌ Failed to load dropdowns";
-    console.error("Dropdown JSONP failed");
+  s.async = true;
+
+  s.onload = () => console.log("🔹 JSONP script loaded:", s.src);
+  s.onerror = (err) => {
+    console.error("❌ JSONP load error", err);
+    if (msg) msg.textContent = "❌ Failed to load dropdowns (network)";
   };
+
   document.body.appendChild(s);
 }
 
