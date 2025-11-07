@@ -213,23 +213,55 @@
       }
     }
 
-    async function loadDropdowns(){
-      const msgEl=document.getElementById("msg");
-      msgEl.textContent="Loading dropdowns...";
-      try{
-        const res=await fetch(SCRIPT_URL,{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({action:"getDropdownValues"})
-        });
-        const data=await res.json();
-        populateDropdowns(data);
-        msgEl.textContent="";
-      }catch(err){
-        console.error("Dropdown load failed:",err);
-        msgEl.textContent="❌ Failed to load dropdowns";
-      }
+    // ---------- JSONP dropdown loader (no CORS) ----------
+function loadDropdownsJSONP(){
+  const msg = document.getElementById("msg");
+  if (msg) msg.textContent = "Loading dropdowns...";
+
+  // Create a unique callback name
+  const cb = "cbDropdown_" + Date.now();
+
+  // Define the callback BEFORE loading the script
+  window[cb] = function (data) {
+    try {
+      const map = {
+        designerName : data.designers || [],
+        unit         : data.units || [],
+        productName  : data.products || [],
+        printStyleId : data.printStyleIDs || [],
+        printStyleNo : data.printStyleNos || []
+      };
+      Object.entries(map).forEach(([id, arr])=>{
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = "<option value=''>Select</option>" +
+          arr.map(v=>`<option>${String(v)}</option>`).join("");
+      });
+
+      if (msg) msg.textContent = ""; // clear loading text
+    } catch (err) {
+      console.error("Dropdown populate error:", err);
+      if (msg) msg.textContent = "❌ Dropdown populate failed";
+    } finally {
+      // Clean up the script element and callback
+      const scr = document.getElementById(cb);
+      if (scr) scr.remove();
+      delete window[cb];
     }
+  };
+
+  // Inject the script tag that calls Apps Script
+  const s = document.createElement("script");
+  s.id = cb;
+  s.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
+  s.onerror = function() {
+    if (msg) msg.textContent = "❌ Failed to load dropdowns (network)";
+    delete window[cb];
+    s.remove();
+  };
+  document.body.appendChild(s);
+}
+
 
     async function gatherMaterialsAndAttachments(){
       const materials=[];
