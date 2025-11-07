@@ -80,6 +80,28 @@ h3{background:#007bff;color:#fff;padding:6px 10px;border-radius:4px;font-size:16
 </div>
 
 <script>
+function buildDynamicRows(){
+  const mat=document.getElementById("materials");
+  mat.innerHTML="";
+  for(let i=1;i<=5;i++){
+    const row=document.createElement("div");
+    row.className="row";
+    row.innerHTML=`<input placeholder="Material ${i} Name">
+                   <input placeholder="Qty">`;
+    mat.appendChild(row);
+  }
+  const att=document.getElementById("attachments");
+  att.innerHTML="";
+  for(let i=1;i<=5;i++){
+    const row=document.createElement("div");
+    row.className="row";
+    row.innerHTML=`<input placeholder="Attachment ${i} Name">
+                   <input type="file" accept="image/*">`;
+    att.appendChild(row);
+  }
+}
+document.addEventListener("DOMContentLoaded", buildDynamicRows);
+  
 const SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbwpbCvnRpjaMIQi-SCWMNcIMgJXDqrCr3Y5K4uZ-OZpQ35GuBmoejLeC1MY5TvR0rMK/exec";
 
@@ -126,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
   buildDynamicRows();        // ← you already know this works
   loadDropdownsJSONP();      // ← now it will fill dropdowns
 });
-</script>
 
+</script>
 </body>
 </html>
