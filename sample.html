@@ -1,176 +1,326 @@
-  <!DOCTYPE html>
-<html>
-  <head>
-    <base target="_top">
-    <style>
-      body {
-        font-family: 'Segoe UI', sans-serif;
-        background: #f3f4f6;
-        padding: 30px;
-        color: #333;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Designer Sample Creation Form</title>
+  <link rel="icon" href="data:,">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 90%;
+      max-width: 1000px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #007bff;
+      margin-bottom: 25px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    textarea { resize: vertical; }
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .file-input {
+      width: 100%;
+    }
+    button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 15px;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #msg {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
+    h3 {
+      background: #007bff;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      margin-top: 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Designer Sample Creation Form</h1>
+
+    <form id="entryForm">
+      <div class="row">
+        <div style="flex:1">
+          <label for="designerName">Designer Name*</label>
+          <select id="designerName" required></select>
+        </div>
+        <div style="flex:1">
+          <label for="unit">Unit*</label>
+          <select id="unit" required></select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="productName">Product Name*</label>
+          <select id="productName" required></select>
+        </div>
+        <div style="flex:1">
+          <label for="printStyleId">Print Style ID*</label>
+          <select id="printStyleId" required></select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="printStyleNo">Print Style No*</label>
+          <select id="printStyleNo" required></select>
+        </div>
+        <div style="flex:1">
+          <label for="designNo">Design No*</label>
+          <input type="text" id="designNo" required>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="color">Color*</label>
+          <input type="text" id="color" required>
+        </div>
+        <div style="flex:1">
+          <label for="topLength">Top Length*</label>
+          <input type="text" id="topLength" placeholder="In CM">
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label for="bottomLength">Bottom Length*</label>
+          <input type="text" id="bottomLength" placeholder="In CM">
+        </div>
+        <div style="flex:1">
+          <label for="details">Details</label>
+          <textarea id="details"></textarea>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Product Image (Front)*</label>
+          <input type="file" id="productImage" accept="image/*" class="file-input">
+        </div>
+        <div style="flex:1">
+          <label>Product Image (Back)</label>
+          <input type="file" id="productImageBack" accept="image/*" class="file-input">
+        </div>
+      </div>
+
+      <h3>Materials</h3>
+      <div id="materials"></div>
+
+      <h3>Attachments</h3>
+      <div id="attachments"></div>
+
+      <p id="msg"></p>
+      <button id="submitBtn" type="submit">Save</button>
+    </form>
+  </div>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWq6umwvKKy23eJ3eDO6ic_J2R5Ir5jOpkNDW0AG7EEVJAyAqiJvK-r_T1VQZrAA32/exec";
+
+    function toBase64(file){
+      return new Promise((resolve,reject)=>{
+        const r=new FileReader();
+        r.onload=()=>resolve(r.result);
+        r.onerror=reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    function populateDropdowns(data){
+      const map = {
+        designerName : data.designers || [],
+        unit         : data.units || [],
+        productName  : data.products || [],
+        printStyleId : data.printStyleIDs || [],
+        printStyleNo : data.printStyleNos || []
+      };
+      Object.entries(map).forEach(([id, arr])=>{
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.innerHTML = "<option value=''>Select</option>" + arr.map(v=>`<option>${v}</option>`).join("");
+      });
+    }
+
+    function buildDynamicRows(){
+      const matDiv = document.getElementById("materials");
+      const attDiv = document.getElementById("attachments");
+
+      if(matDiv){
+        matDiv.innerHTML="";
+        for(let i=1;i<=5;i++){
+          const row=document.createElement("div");
+          row.className="row";
+          row.innerHTML=`<input type="text" id="matName${i}" placeholder="Material ${i} Name">
+                         <input type="text" id="matQty${i}" placeholder="Qty">`;
+          matDiv.appendChild(row);
+        }
       }
 
-      .container {
-        background: white;
-        border-radius: 14px;
-        padding: 30px 40px;
-        max-width: 950px;
-        margin: auto;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      if(attDiv){
+        attDiv.innerHTML="";
+        for(let i=1;i<=5;i++){
+          const row=document.createElement("div");
+          row.className="row";
+          row.innerHTML=`<input type="text" id="attName${i}" placeholder="Attachment ${i} Name">
+                         <input type="file" id="attPhoto${i}" accept="image/*" class="file-input">`;
+          attDiv.appendChild(row);
+        }
       }
+    }
 
-      h2 {
-        text-align: center;
-        margin-bottom: 25px;
-        font-weight: 600;
-        color: #007bff;
+    async function loadDropdowns(){
+      const msgEl=document.getElementById("msg");
+      msgEl.textContent="Loading dropdowns...";
+      try{
+        const res=await fetch(SCRIPT_URL,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({action:"getDropdownValues"})
+        });
+        const data=await res.json();
+        populateDropdowns(data);
+        msgEl.textContent="";
+      }catch(err){
+        console.error("Dropdown load failed:",err);
+        msgEl.textContent="❌ Failed to load dropdowns";
       }
+    }
 
-      table { width: 100%; border-collapse: collapse; }
-      td { padding: 8px 10px; vertical-align: middle; }
-
-      label {
-        font-weight: 600;
-        display: block;
-        margin-bottom: 4px;
-        color: #444;
+    async function gatherMaterialsAndAttachments(){
+      const materials=[];
+      for(let i=1;i<=5;i++){
+        materials.push({
+          name:document.getElementById("matName"+i)?.value||"",
+          qty:document.getElementById("matQty"+i)?.value||""
+        });
       }
-
-      input, select, textarea {
-        width: 100%;
-        padding: 8px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        box-sizing: border-box;
-        transition: border-color 0.2s;
+      const attachments=[];
+      for(let i=1;i<=5;i++){
+        const f=document.getElementById("attPhoto"+i)?.files?.[0];
+        let photoData="",photoType="",photoName="";
+        if(f){
+          photoData=await toBase64(f);
+          photoType=f.type;
+          photoName=f.name;
+        }
+        attachments.push({
+          name:document.getElementById("attName"+i)?.value||"",
+          photoData,photoType,photoName
+        });
       }
+      return {materials,attachments};
+    }
 
-      input:focus, select:focus, textarea:focus {
-        outline: none;
-        border-color: #007bff;
-      }
+    document.addEventListener("DOMContentLoaded",()=>{
+      buildDynamicRows();
+      loadDropdowns();
 
-      textarea { resize: vertical; }
+      const form=document.getElementById("entryForm");
+      const btn=document.getElementById("submitBtn");
+      const msg=document.getElementById("msg");
 
-      .section { margin-top: 25px; }
+      form.addEventListener("submit",async e=>{
+        e.preventDefault();
+        btn.disabled=true;
+        msg.textContent="Saving...";
 
-      h3 {
-        background: #007bff;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 16px;
-        margin-top: 30px;
-      }
+        const fileFront=document.getElementById("productImage")?.files[0];
+        const fileBack=document.getElementById("productImageBack")?.files[0];
+        const productImageData=fileFront?await toBase64(fileFront):"";
+        const productImageBackData=fileBack?await toBase64(fileBack):"";
 
-      .row {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 10px;
-        align-items: center;
-      }
-      .row input[type="text"] { flex: 1 1 50%; }
-      .row .file-box { flex: 1 1 50%; }
-      .row .file-box input[type="file"] {
-        width: 100%;
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px dashed #bbb;
-        cursor: pointer;
-      }
-      .row .file-box input[type="file"]:hover { border-color: #007bff; }
+        const {materials,attachments}=await gatherMaterialsAndAttachments();
 
-      .file-input {
-        background: #f8f9fa;
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px dashed #bbb;
-      }
-      .file-input:hover { border-color: #007bff; }
+        const formData={
+          designerName:designerName.value,
+          unit:unit.value,
+          productName:productName.value,
+          printStyleId:printStyleId.value,
+          printStyleNo:printStyleNo.value,
+          designNo:designNo.value,
+          color:color.value,
+          topLength:topLength.value,
+          bottomLength:bottomLength.value,
+          details:details.value,
+          productImageData,
+          productImageBackData,
+          productImageType:fileFront?fileFront.type:"",
+          productImageName:fileFront?fileFront.name:"",
+          productImageBackType:fileBack?fileBack.type:"",
+          productImageBackName:fileBack?fileBack.name:"",
+          materials,attachments
+        };
 
-      button {
-        margin-top: 25px;
-        width: 100%;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 8px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: all 0.3s;
-      }
-      button.active { background-color: #28a745; }
-      button:disabled { background: #ccc; cursor: not-allowed; }
-
-      #msg {
-        text-align: center;
-        font-weight: 500;
-        margin-top: 15px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <form id="entryForm">
-        <h2>Designer Sample Creation Form</h2>
-
-        <table>
-          <tr>
-            <td><label>Designer Name*</label></td>
-            <td><select id="designerName" required></select></td>
-            <td><label>Unit*</label></td>
-            <td><select id="unit" required></select></td>
-          </tr>
-          <tr>
-            <td><label>Product Name*</label></td>
-            <td><select id="productName" required></select></td>
-            <td><label>Print Style ID*</label></td>
-            <td><select id="printStyleId" required></select></td>
-          </tr>
-          <tr>
-            <td><label>Print Style No*</label></td>
-            <td><select id="printStyleNo" required></select></td>
-            <td><label>Design No*</label></td>
-            <td><input type="text" id="designNo" required></td>
-          </tr>
-          <tr>
-            <td><label>Color*</label></td>
-            <td><input type="text" id="color" required></td>
-            <td><label>Top Length*</label></td>
-            <td><input type="number" id="topLength" placeholder="In CM" step="0.01" required></td>
-          </tr>
-          <tr>
-            <td><label>Bottom Length*</label></td>
-            <td><input type="number" id="bottomLength" placeholder="In CM" step="0.01" required></td>
-            <td><label>Details</label></td>
-            <td><textarea id="details" rows="2"></textarea></td>
-          </tr>
-          <tr>
-            <td><label>Product Image (Front)*</label></td>
-            <td colspan="3"><input type="file" id="productImage" accept="image/*" required class="file-input"></td>
-          </tr>
-          <tr>
-            <td><label>Product Image (Back)</label></td>
-            <td colspan="3"><input type="file" id="productImageBack" accept="image/*" class="file-input"></td>
-          </tr>
-        </table>
-
-        <h3>Materials</h3>
-        <div id="materials"></div>
-
-        <h3>Attachments</h3>
-        <div id="attachments"></div>
-
-        <button id="submitBtn" type="submit" disabled>Save</button>
-        <p id="msg"></p>
-      </form>
-    </div>
-    
-<script>
-/* ===== CONFIG ===== */
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWq6umwvKKy23eJ3eDO6ic_J2R5Ir5jOpkNDW0AG7EEVJAyAqiJvK-r_T1VQZrAA32/exec";
+        try{
+          const res=await fetch(SCRIPT_URL,{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({action:"submitSample",formData})
+          });
+          const j=await res.json();
+          if(j.success){
+            msg.textContent="✅ Saved successfully!";
+            form.reset();
+            buildDynamicRows();
+          }else{
+            msg.textContent="❌ "+(j.error||"Failed to save");
+          }
+        }catch(err){
+          console.error(err);
+          msg.textContent="❌ "+err.message;
+        }finally{
+          btn.disabled=false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
 
 /* ===== HELPERS ===== */
 function toBase64(file){
