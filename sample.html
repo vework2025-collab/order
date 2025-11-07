@@ -114,26 +114,77 @@ h3{background:#007bff;color:#fff;padding:6px 10px;border-radius:4px;margin-top:2
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpbCvnRpjaMIQi-SCWMNcIMgJXDqrCr3Y5K4uZ-OZpQ35GuBmoejLeC1MY5TvR0rMK/exec"; // same as form action
 
 // ---------- JSONP dropdown loader ----------
-function loadDropdownsJSONP(){
-  const cb = "cbDropdown_" + Date.now();
-  window[cb] = function(data){
-    const map = {
-      designerName:data.designers||[],
-      unit:data.units||[],
-      productName:data.products||[],
-      printStyleId:data.printStyleIDs||[],
-      printStyleNo:data.printStyleNos||[]
-    };
-    Object.entries(map).forEach(([id,arr])=>{
-      const el=document.getElementById(id);
-      if(!el)return;
-      el.innerHTML="<option value=''>Select</option>"+arr.map(v=>`<option>${String(v)}</option>`).join("");
-    });
-    delete window[cb];
-    document.getElementById("msg").textContent="";
+<script>
+// Replace both functions with these:
+
+function populateDropdowns(data){
+  const map = {
+    designerName : data?.designers || [],
+    unit         : data?.units || [],
+    productName  : data?.products || [],
+    printStyleId : data?.printStyleIDs || [],
+    printStyleNo : data?.printStyleNos || []
   };
-  const s=document.createElement("script");
-  s.src=`${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
+  for (const [id, arr] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (!el) { console.warn("Missing select id:", id); continue; }
+    el.innerHTML = "<option value=''>Select</option>" +
+      arr.map(v => `<option>${String(v)}</option>`).join("");
+  }
+}
+
+function loadDropdownsJSONP(){
+  const msg = document.getElementById("msg");
+  if (msg) msg.textContent = "Loading dropdowns...";
+
+  // 1) Build a unique callback
+  const cb = "cbDropdown_" + Date.now();
+  let gotCallback = false;
+
+  // 2) Define the callback *before* loading the script
+  window[cb] = function(data){
+    try {
+      gotCallback = true;
+      console.log("[JSONP] callback hit:", cb, data);
+      populateDropdowns(data);
+      if (msg) msg.textContent = ""; // clear loading text only on success
+    } catch (err) {
+      console.error("Dropdown populate error:", err);
+      if (msg) msg.textContent = "❌ Dropdown populate failed";
+    } finally {
+      // cleanup
+      const scr = document.getElementById(cb);
+      if (scr) scr.remove();
+      delete window[cb];
+    }
+  };
+
+  // 3) Inject the script tag
+  const s = document.createElement("script");
+  s.id = cb;
+  s.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
+  s.async = true;
+
+  // Diagnostics
+  s.onload = () => console.log("[JSONP] script loaded:", s.src);
+  s.onerror = () => {
+    console.error("[JSONP] network error loading:", s.src);
+    if (msg) msg.textContent = "❌ Failed to load dropdowns (network)";
+    delete window[cb];
+    s.remove();
+  };
+
+  // 4) Timeout guard (5s) if callback never fires
+  setTimeout(() => {
+    if (!gotCallback) {
+      console.error("[JSONP] callback not invoked within 5s:", cb);
+      if (msg) msg.textContent = "❌ Failed to load dropdowns";
+      const scr = document.getElementById(cb);
+      if (scr) scr.remove();
+      delete window[cb];
+    }
+  }, 5000);
+
   document.body.appendChild(s);
 }
 
@@ -175,6 +226,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   form.addEventListener("submit",()=>{
     btn.disabled=true;
     msg.textContent="Saving...";
+    console.log("SCRIPT_URL =", SCRIPT_URL);
+
   });
 
   // receive iframe response
