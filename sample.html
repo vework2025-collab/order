@@ -432,18 +432,33 @@ function buildDynamicRows(){
 }
 
 /* POST to Apps Script to get dropdown values */
-async function loadDropdowns(){
-  const msgEl = document.getElementById("msg");
-  if (msgEl) msgEl.textContent = "Loading dropdowns...";
-  const res = await fetch(SCRIPT_URL, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ action:"getDropdownValues" })
-  });
-  const data = await res.json();
-  populateDropdowns(data);
-  if (msgEl) msgEl.textContent = "";
+function loadDropdownsJSONP(){
+  const msg = document.getElementById("msg");
+  if (msg) msg.textContent = "Loading dropdowns...";
+
+  const cb = "cbDropdown_" + Date.now();
+  window[cb] = function(data){
+    try {
+      populateDropdowns(data);
+      if (msg) msg.textContent = "";
+    } finally {
+      const scr = document.getElementById(cb);
+      if (scr) scr.remove();
+      delete window[cb];
+    }
+  };
+
+  const s = document.createElement("script");
+  s.id = cb;
+  s.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
+  s.onerror = () => {
+    if (msg) msg.textContent = "❌ Failed to load dropdowns (network)";
+    delete window[cb];
+    s.remove();
+  };
+  document.body.appendChild(s);
 }
+
 
 /* Gather materials & attachments arrays */
 async function gatherMaterialsAndAttachments(){
@@ -477,7 +492,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // build dynamic UI sections
   buildDynamicRows();
   // load dropdowns
-  loadDropdowns().catch(err=>{
+  loadDropdownsJSONP().catch(err=>{
     console.error("Dropdown load failed:", err);
     const msgEl = document.getElementById("msg");
     if (msgEl) msgEl.textContent = "❌ Failed to load dropdowns";
