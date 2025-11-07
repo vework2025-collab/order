@@ -111,141 +111,120 @@ h3{background:#007bff;color:#fff;padding:6px 10px;border-radius:4px;margin-top:2
 <iframe name="uploadFrame" style="display:none"></iframe>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpbCvnRpjaMIQi-SCWMNcIMgJXDqrCr3Y5K4uZ-OZpQ35GuBmoejLeC1MY5TvR0rMK/exec"; // same as form action
+/* ---------- CONFIG ---------- */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpbCvnRpjaMIQi-SCWMNcIMgJXDqrCr3Y5K4uZ-OZpQ35GuBmoejLeC1MY5TvR0rMK/exec"; // your /exec URL
 
-// ---------- JSONP dropdown loader ----------
-<script>
-// Replace both functions with these:
 
-function populateDropdowns(data){
+/* ---------- BUILD UI SECTIONS ---------- */
+function buildDynamicRows() {
+  console.log("🔧 Building dynamic rows...");
+  const matDiv = document.getElementById("materials");
+  const attDiv = document.getElementById("attachments");
+
+  if (matDiv) {
+    matDiv.innerHTML = "";
+    for (let i = 1; i <= 5; i++) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <input type="text" id="matName${i}" name="matName${i}" placeholder="Material ${i} Name">
+        <input type="text" id="matQty${i}" name="matQty${i}" placeholder="Qty">`;
+      matDiv.appendChild(row);
+    }
+  }
+
+  if (attDiv) {
+    attDiv.innerHTML = "";
+    for (let i = 1; i <= 5; i++) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <input type="text" id="attName${i}" name="attName${i}" placeholder="Attachment ${i} Name">
+        <input type="file" id="attPhoto${i}" name="attPhoto${i}" accept="image/*">`;
+      attDiv.appendChild(row);
+    }
+  }
+}
+
+
+/* ---------- POPULATE DROPDOWNS ---------- */
+function populateDropdowns(data) {
+  console.log("✅ Populating dropdowns:", data);
   const map = {
-    designerName : data?.designers || [],
-    unit         : data?.units || [],
-    productName  : data?.products || [],
-    printStyleId : data?.printStyleIDs || [],
-    printStyleNo : data?.printStyleNos || []
+    designerName: data?.designers || [],
+    unit: data?.units || [],
+    productName: data?.products || [],
+    printStyleId: data?.printStyleIDs || [],
+    printStyleNo: data?.printStyleNos || []
   };
   for (const [id, arr] of Object.entries(map)) {
     const el = document.getElementById(id);
-    if (!el) { console.warn("Missing select id:", id); continue; }
-    el.innerHTML = "<option value=''>Select</option>" +
+    if (!el) continue;
+    el.innerHTML =
+      "<option value=''>Select</option>" +
       arr.map(v => `<option>${String(v)}</option>`).join("");
   }
 }
 
-function loadDropdownsJSONP(){
+
+/* ---------- LOAD DROPDOWNS VIA JSONP ---------- */
+function loadDropdownsJSONP() {
   const msg = document.getElementById("msg");
   if (msg) msg.textContent = "Loading dropdowns...";
-
-  // 1) Build a unique callback
   const cb = "cbDropdown_" + Date.now();
-  let gotCallback = false;
-
-  // 2) Define the callback *before* loading the script
-  window[cb] = function(data){
-    try {
-      gotCallback = true;
-      console.log("[JSONP] callback hit:", cb, data);
-      populateDropdowns(data);
-      if (msg) msg.textContent = ""; // clear loading text only on success
-    } catch (err) {
-      console.error("Dropdown populate error:", err);
-      if (msg) msg.textContent = "❌ Dropdown populate failed";
-    } finally {
-      // cleanup
-      const scr = document.getElementById(cb);
-      if (scr) scr.remove();
-      delete window[cb];
-    }
+  window[cb] = function (data) {
+    populateDropdowns(data);
+    if (msg) msg.textContent = "";
+    delete window[cb];
+    const s = document.getElementById(cb);
+    if (s) s.remove();
   };
-
-  // 3) Inject the script tag
   const s = document.createElement("script");
   s.id = cb;
   s.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
-  s.async = true;
-
-  // Diagnostics
-  s.onload = () => console.log("[JSONP] script loaded:", s.src);
-  s.onerror = () => {
-    console.error("[JSONP] network error loading:", s.src);
-    if (msg) msg.textContent = "❌ Failed to load dropdowns (network)";
-    delete window[cb];
-    s.remove();
+  s.onerror = function () {
+    if (msg) msg.textContent = "❌ Failed to load dropdowns";
+    console.error("Dropdown JSONP failed");
   };
-
-  // 4) Timeout guard (5s) if callback never fires
-  setTimeout(() => {
-    if (!gotCallback) {
-      console.error("[JSONP] callback not invoked within 5s:", cb);
-      if (msg) msg.textContent = "❌ Failed to load dropdowns";
-      const scr = document.getElementById(cb);
-      if (scr) scr.remove();
-      delete window[cb];
-    }
-  }, 5000);
-
   document.body.appendChild(s);
 }
 
-// ---------- dynamic rows ----------
-function buildDynamicRows(){
-  const matDiv=document.getElementById("materials");
-  matDiv.innerHTML="";
-  for(let i=1;i<=5;i++){
-    const row=document.createElement("div");
-    row.className="row";
-    row.innerHTML=`
-      <input type="text" id="matName${i}" name="matName${i}" placeholder="Material ${i} Name">
-      <input type="text" id="matQty${i}" name="matQty${i}" placeholder="Qty">`;
-    matDiv.appendChild(row);
-  }
-  const attDiv=document.getElementById("attachments");
-  attDiv.innerHTML="";
-  for(let i=1;i<=5;i++){
-    const row=document.createElement("div");
-    row.className="row";
-    row.innerHTML=`
-      <input type="text" id="attName${i}" name="attName${i}" placeholder="Attachment ${i} Name">
-      <input type="file" id="attPhoto${i}" name="attPhoto${i}" accept="image/*" class="file-input">`;
-    attDiv.appendChild(row);
-  }
-}
 
-// ---------- initialize ----------
-document.addEventListener("DOMContentLoaded",()=>{
-  document.getElementById("msg").textContent="Loading dropdowns...";
-  buildDynamicRows();
-  loadDropdownsJSONP();
+/* ---------- INIT ---------- */
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("🌐 Loaded page, SCRIPT_URL =", SCRIPT_URL);
+  buildDynamicRows();        // always build visible UI
+  loadDropdownsJSONP();      // then fetch dropdown data
 
-  const form=document.getElementById("entryForm");
-  const btn=document.getElementById("submitBtn");
-  const msg=document.getElementById("msg");
+  const form = document.getElementById("entryForm");
+  const btn = document.getElementById("submitBtn");
+  const msg = document.getElementById("msg");
 
-  // no preventDefault()
-  form.addEventListener("submit",()=>{
-    btn.disabled=true;
-    msg.textContent="Saving...";
-    console.log("SCRIPT_URL =", SCRIPT_URL);
-
+  // Don’t block submit (no preventDefault)
+  form.addEventListener("submit", () => {
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = "Saving...";
   });
 
-  // receive iframe response
-  window.addEventListener("message",(ev)=>{
-    try{
-      const res=JSON.parse(ev.data||"{}");
-      if(res.success){
-        msg.textContent="✅ Saved successfully!";
+  window.addEventListener("message", (ev) => {
+    try {
+      const res = JSON.parse(ev.data || "{}");
+      console.log("🧾 Response from iframe:", res);
+      if (res.success) {
+        msg.textContent = "✅ Saved successfully!";
         form.reset();
-        buildDynamicRows();
-      }else{
-        msg.textContent="❌ "+(res.error||"Failed to save");
+        buildDynamicRows(); // rebuild cleared fields
+      } else {
+        msg.textContent = "❌ " + (res.error || "Failed to save");
       }
-    }catch(_){}
-    btn.disabled=false;
+    } catch (err) {
+      console.warn("Non-JSON message:", ev.data);
+    }
+    if (btn) btn.disabled = false;
   });
 });
 </script>
+
 </body>
 </html>
       
