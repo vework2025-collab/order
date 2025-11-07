@@ -199,32 +199,56 @@ function populateDropdowns(data){
   });
 }
 
-/* Build 5 rows each for Materials & Attachments */
+<script>
+/* keep your SCRIPT_URL, helpers, loadDropdowns, submit handler as-is */
+
+/* REPLACE your buildDynamicRows() with this version */
 function buildDynamicRows(){
+  // --- Materials ---
   const matDiv = document.getElementById("materials");
   if (matDiv){
     matDiv.innerHTML = "";
-    for(let i=1;i<=5;i++){
+    for (let i = 1; i <= 5; i++){
       const row = document.createElement("div");
       row.className = "row";
-      row.innerHTML = `
-        <input type="text" id="matName${i}" placeholder="Material ${i} Name">
-        <input type="text" id="matQty${i}" placeholder="Qty">
-      `;
+
+      const inName = document.createElement("input");
+      inName.type = "text";
+      inName.id = "matName"+i;
+      inName.placeholder = "Material " + i + " Name";
+
+      const inQty = document.createElement("input");
+      inQty.type = "text";
+      inQty.id = "matQty"+i;
+      inQty.placeholder = "Qty";
+
+      row.appendChild(inName);
+      row.appendChild(inQty);
       matDiv.appendChild(row);
     }
   }
 
+  // --- Attachments ---
   const attDiv = document.getElementById("attachments");
   if (attDiv){
     attDiv.innerHTML = "";
-    for(let i=1;i<=5;i++){
+    for (let i = 1; i <= 5; i++){
       const row = document.createElement("div");
       row.className = "row";
-      row.innerHTML = `
-        <input type="text" id="attName${i}" placeholder="Attachment ${i} Name">
-        <input type="file" id="attPhoto${i}" accept="image/*" class="file-input">
-      `;
+
+      const inLabel = document.createElement("input");
+      inLabel.type = "text";
+      inLabel.id = "attName"+i;
+      inLabel.placeholder = "Attachment " + i + " Name";
+
+      const inFile = document.createElement("input");
+      inFile.type = "file";
+      inFile.id = "attPhoto"+i;
+      inFile.accept = "image/*";
+      inFile.className = "file-input";
+
+      row.appendChild(inLabel);
+      row.appendChild(inFile);
       attDiv.appendChild(row);
     }
   }
