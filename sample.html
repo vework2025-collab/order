@@ -30,7 +30,7 @@
   <pre id="debug" class="debug" style="display:none"></pre>
 
   <form id="entryForm"
-        action="https://script.google.com/macros/s/AKfycbynB_KjJLEuM22MTqRvVK2ciAqr204Fn6Mgr2sjFQtS4Rh-0PapkQeB8Z9i9jG3_KNu/exec"
+        action="https://script.google.com/macros/s/AKfycbyW3t-u1K1QYUnqLccKEe4NmoktZRTzpxrbOR0XrKTF-bkpSYB3Yjo6bcNpETHDLe5A/exec"
         method="POST"
         enctype="multipart/form-data"
         target="uploadFrame"
@@ -145,19 +145,50 @@ function buildDynamicRows(){
 }
 
 /* ====== DROPDOWN LOADER (CORS POST) ====== */
-async function loadDropdowns(){
+<script>
+function loadDropdowns() {
   const msg = document.getElementById("msg");
   const dbg = document.getElementById("debug");
   dbg.style.display = "block";
-  dbg.textContent = "SCRIPT_URL = " + SCRIPT_URL + "\nStarting fetch…";
+  dbg.textContent = "Loading dropdowns via JSONP…";
 
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: "POST",
-      mode: "cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "getDropdownValues" })
-    });
+  const cb = "cb_" + Date.now();
+
+  window[cb] = function (data) {
+    dbg.textContent += "\n✅ Data received.";
+    console.log("Dropdown data:", data);
+
+    const map = {
+      designerName : data.designers || [],
+      unit         : data.units || [],
+      productName  : data.products || [],
+      printStyleId : data.printStyleIDs || [],
+      printStyleNo : data.printStyleNos || []
+    };
+
+    for (const [id, arr] of Object.entries(map)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.innerHTML =
+        "<option value=''>Select</option>" +
+        arr.map(v => `<option>${String(v)}</option>`).join("");
+    }
+
+    msg.textContent = "Dropdowns loaded";
+    msg.className = "ok";
+    delete window[cb];
+  };
+
+  const script = document.createElement("script");
+  script.src = `${SCRIPT_URL}?action=getDropdownValues&callback=${cb}`;
+  script.onerror = function () {
+    msg.textContent = "❌ Failed to load dropdowns";
+    msg.className = "error";
+    dbg.textContent += "\n❌ Script load error.";
+  };
+
+  document.body.appendChild(script);
+}
     dbg.textContent += "\nStatus: " + res.status + " " + res.statusText;
     const data = await res.json();
     dbg.textContent += "\nData: " + JSON.stringify(data).slice(0,400) + (JSON.stringify(data).length>400?"…":"");
@@ -216,6 +247,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
     btn.disabled = false;
   });
 });
+  document.addEventListener("DOMContentLoaded", () => {
+  buildDynamicRows();
+  loadDropdowns();   // ← this one runs now
+});
+
 </script>
 </body>
 </html>
