@@ -63,18 +63,21 @@
     background-color: #f3f7ff;
   }
 
-  img.thumb {
-    width: 70px;
-    height: 70px;
-    border-radius: 6px;
-    object-fit: cover;
-    transition: transform 0.2s;
-    cursor: pointer;
-  }
+ img.thumb {
+  width: 100px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  background: #fafafa;
+  transition: transform 0.2s;
+}
+img.thumb:hover {
+  transform: scale(2);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  z-index: 99;
+}
 
-  img.thumb:hover {
-    transform: scale(1.15);
-  }
 
   @media (max-width: 768px) {
     th, td { font-size: 12px; padding: 8px; }
