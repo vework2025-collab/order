@@ -87,13 +87,32 @@
 <h1>Sample View</h1>
 
 <div class="filter-bar">
-  <select id="designerFilter"><option value="">All Designers</option></select>
-  <select id="unitFilter"><option value="">All Units</option></select>
-  <select id="productFilter"><option value="">All Products</option></select>
-  <select id="styleIdFilter"><option value="">All Style IDs</option></select>
-  <select id="styleNoFilter"><option value="">All Style Nos</option></select>
-  <input type="text" id="searchBox" placeholder="Search Design No...">
+  <div>
+    <label>Designer:</label>
+    <select id="designerFilter"><option value="">All</option></select>
+  </div>
+  <div>
+    <label>Unit:</label>
+    <select id="unitFilter"><option value="">All</option></select>
+  </div>
+  <div>
+    <label>Product:</label>
+    <select id="productFilter"><option value="">All</option></select>
+  </div>
+  <div>
+    <label>Print Style ID:</label>
+    <select id="styleIdFilter"><option value="">All</option></select>
+  </div>
+  <div>
+    <label>Print Style No:</label>
+    <select id="styleNoFilter"><option value="">All</option></select>
+  </div>
+  <div>
+    <label>Design No:</label>
+    <input type="text" id="searchBox" placeholder="Search Design No">
+  </div>
 </div>
+
 
 <table id="samplesTable">
   <thead>
@@ -160,22 +179,28 @@ function renderTable(data) {
 
 function applyFilters() {
   let filtered = [...allData];
-  const dF = document.getElementById("designerFilter").value;
-  const uF = document.getElementById("unitFilter").value;
-  const pF = document.getElementById("productFilter").value;
-  const idF = document.getElementById("styleIdFilter").value;
-  const noF = document.getElementById("styleNoFilter").value;
-  const search = document.getElementById("searchBox").value.toLowerCase();
 
-  if (dF) filtered = filtered.filter(d => d.designerName === dF);
-  if (uF) filtered = filtered.filter(d => d.unit === uF);
-  if (pF) filtered = filtered.filter(d => d.productName === pF);
-  if (idF) filtered = filtered.filter(d => d.printStyleId === idF);
-  if (noF) filtered = filtered.filter(d => d.printStyleNo === noF);
-  if (search) filtered = filtered.filter(d => (d.designNo || "").toLowerCase().includes(search));
+  const filters = {
+    designerName: document.getElementById("designerFilter").value,
+    unit: document.getElementById("unitFilter").value,
+    productName: document.getElementById("productFilter").value,
+    printStyleId: document.getElementById("styleIdFilter").value,
+    printStyleNo: document.getElementById("styleNoFilter").value,
+    search: document.getElementById("searchBox").value.toLowerCase()
+  };
+
+  Object.entries(filters).forEach(([key, val]) => {
+    if (!val) return;
+    if (key === "search") {
+      filtered = filtered.filter(d => (d.designNo || "").toLowerCase().includes(val));
+    } else {
+      filtered = filtered.filter(d => (d[key] || "") === val);
+    }
+  });
 
   renderTable(filtered);
 }
+
 
 document.querySelectorAll(".filter-bar select, #searchBox").forEach(el => {
   el.addEventListener("change", applyFilters);
