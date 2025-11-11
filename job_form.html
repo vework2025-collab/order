@@ -1,0 +1,354 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Job Issue</title>
+    <style>
+      body { font-family: "Segoe UI", Arial, sans-serif; background:#f7f9fc; margin:0; padding:20px; }
+      .card { background:#fff; border-radius:12px; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,.06); max-width:1200px; margin:auto; }
+      h1 { margin:0 0 14px; color:#1147a8; font-size:22px; }
+      .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; }
+      label { font-size:13px; color:#334; display:block; margin-bottom:6px; }
+      input[type="text"], input[type="number"], input[type="date"], select, textarea {
+        width:100%; padding:9px; border:1px solid #ccd5e0; border-radius:8px; background:#fff;
+      }
+      textarea { min-height:82px; resize:vertical; }
+      .row { display:flex; gap:10px; align-items:center; }
+      .inline { display:flex; gap:12px; flex-wrap:wrap; }
+      .section { margin-top:16px; border-top:1px dashed #e2e8f0; padding-top:14px; }
+      .muted { color:#6b7280; font-size:12px; }
+      .btn { background:#0a53be; color:#fff; border:0; padding:10px 16px; border-radius:8px; cursor:pointer; }
+      .btn:disabled { opacity:.6; cursor:not-allowed; }
+      .btn.secondary { background:#f1f5f9; color:#334; }
+      table { width:100%; border-collapse:collapse; }
+      th, td { padding:8px; border-bottom:1px solid #eef2f7; font-size:14px; }
+      th { text-align:left; background:#f8fbff; color:#0a53be; }
+      .right { text-align:right; }
+      .hide { display:none !important; }
+      .pill { padding:4px 10px; background:#eef2ff; border-radius:999px; font-size:12px; color:#334; }
+      .two { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Job Issue</h1>
+
+      <!-- Top form -->
+      <div class="grid">
+        <div>
+          <label>Company</label>
+          <select id="company"></select>
+        </div>
+
+        <div>
+          <label>Purpose</label>
+          <select id="purpose"></select>
+          <div id="channelWrap" class="inline hide" style="margin-top:8px;">
+            <span class="muted">Channel:</span>
+            <label><input type="radio" name="channel" value="Retail"> Retail</label>
+            <label><input type="radio" name="channel" value="Wholesale"> Wholesale</label>
+            <label><input type="radio" name="channel" value="Online"> Online</label>
+            <label><input type="radio" name="channel" value="Koashee"> Koashee</label>
+            <label><input type="radio" name="channel" value="Vvyom"> Vvyom</label>
+          </div>
+        </div>
+
+        <div>
+          <label>Jobber Name <span class="muted">(type to search)</span></label>
+          <input id="jobberName" list="dlJobbers" placeholder="Select Jobber">
+          <datalist id="dlJobbers"></datalist>
+        </div>
+
+        <div>
+          <label>Qty</label>
+          <input id="qtyHeader" type="number" min="0" value="0">
+        </div>
+
+        <div id="invoiceWrap" class="hide">
+          <label>Invoice No.</label>
+          <input id="invoiceNo" type="text" placeholder="Invoice No">
+        </div>
+
+        <div id="orderWrap" class="hide">
+          <label>Order No <span class="muted">(Retail, for Order/alteration)</span></label>
+          <input id="orderNo" list="dlOrderNos" placeholder="Select / Search Order No">
+          <datalist id="dlOrderNos"></datalist>
+        </div>
+
+        <div id="salesmanWrap" class="hide">
+          <label>Sales Man</label>
+          <input id="salesman" list="dlSales" placeholder="Select / Search Salesman">
+          <datalist id="dlSales"></datalist>
+        </div>
+
+        <div>
+          <label>Job</label>
+          <input id="job" list="dlJobs" placeholder="Select / Search Job">
+          <datalist id="dlJobs"></datalist>
+        </div>
+
+        <div>
+          <label>Product</label>
+          <select id="product"></select>
+        </div>
+
+        <div>
+          <label>Product Part</label>
+          <input id="productPart" type="text" placeholder="Select Product Part / Free text">
+        </div>
+
+        <div>
+          <label>Qty (Product)</label>
+          <input id="qtyProduct" type="number" min="0" value="0">
+        </div>
+
+        <div>
+          <label>Designer</label>
+          <input id="designer" list="dlDesigners" placeholder="Select / Search Designer">
+          <datalist id="dlDesigners"></datalist>
+        </div>
+
+        <div>
+          <label>Delivery Date</label>
+          <input id="deliveryDate" type="date">
+        </div>
+
+        <div class="two" style="grid-column:1 / span 2;">
+          <div>
+            <label>Remark</label>
+            <textarea id="remark" placeholder="Remark"></textarea>
+          </div>
+          <div></div>
+        </div>
+      </div>
+
+      <!-- Additional Material Issued -->
+      <div class="section">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <h1 style="font-size:18px; margin:0;">Additional Material Issued</h1>
+          <span id="matCount" class="pill">0 items</span>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <div style="flex:1;">
+            <label>Type</label>
+            <select id="matType"></select>
+          </div>
+          <div style="flex:1;">
+            <label>Material Sub Type</label>
+            <input id="matSubType" type="text" placeholder="Optional">
+          </div>
+          <div style="flex:1;">
+            <label>Material / Attachment</label>
+            <select id="matName"></select>
+          </div>
+          <div style="flex:1;">
+            <label>Qty</label>
+            <input id="matQty" type="number" min="0">
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button class="btn" id="btnAddMat">Add</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <table id="matTable">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Sub Type</th>
+                <th>Material / Attachment</th>
+                <th class="right">Qty</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section" style="display:flex; gap:10px;">
+        <button id="btnSave" class="btn">💾 Save</button>
+        <span id="msg" class="muted"></span>
+      </div>
+    </div>
+
+    <script>
+      // State
+      let DROPS = {};
+      const materials = [];
+
+      // Populate selects / datalists
+      function setOptions(selectEl, arr, includeBlank=true) {
+        selectEl.innerHTML = "";
+        if (includeBlank) {
+          const opt = document.createElement("option");
+          opt.value = ""; opt.textContent = "Select";
+          selectEl.appendChild(opt);
+        }
+        (arr || []).forEach(v => {
+          const opt = document.createElement("option");
+          opt.value = v; opt.textContent = v;
+          selectEl.appendChild(opt);
+        });
+      }
+      function setDatalist(dlEl, arr) {
+        dlEl.innerHTML = "";
+        (arr || []).forEach(v => {
+          const opt = document.createElement("option");
+          opt.value = v;
+          dlEl.appendChild(opt);
+        });
+      }
+
+      function toggleChannelAndExtras() {
+        const purpose = document.getElementById("purpose").value || "";
+        const showChannel = ["Order", "alteration"].includes(purpose);
+        document.getElementById("channelWrap").classList.toggle("hide", !showChannel);
+        document.getElementById("invoiceWrap").classList.toggle("hide", !showChannel);
+        document.getElementById("salesmanWrap").classList.toggle("hide", !showChannel);
+
+        const channel = document.querySelector("input[name='channel']:checked");
+        const needOrderNo = showChannel && channel && channel.value === "Retail";
+        document.getElementById("orderWrap").classList.toggle("hide", !needOrderNo);
+      }
+
+      function onChannelChange() {
+        toggleChannelAndExtras();
+      }
+
+      // Materials
+      function refreshMatTable() {
+        const tbody = document.querySelector("#matTable tbody");
+        tbody.innerHTML = "";
+        materials.forEach((m, idx) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${m.type || ""}</td>
+            <td>${m.subType || ""}</td>
+            <td>${m.name || ""}</td>
+            <td class="right">${m.qty || ""}</td>
+            <td><button class="btn secondary" data-i="${idx}">Remove</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        document.getElementById("matCount").textContent = `${materials.length} item${materials.length===1?"":"s"}`;
+        tbody.querySelectorAll("button[data-i]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            const ix = Number(e.target.getAttribute("data-i"));
+            materials.splice(ix, 1);
+            refreshMatTable();
+          });
+        });
+      }
+
+      document.getElementById("btnAddMat").addEventListener("click", (e) => {
+        e.preventDefault();
+        const row = {
+          type: document.getElementById("matType").value,
+          subType: document.getElementById("matSubType").value,
+          name: document.getElementById("matName").value,
+          qty: document.getElementById("matQty").value
+        };
+        if (!row.type || !row.name || !row.qty) {
+          alert("Please fill Type, Material/Attachment and Qty.");
+          return;
+        }
+        materials.push(row);
+        document.getElementById("matSubType").value = "";
+        document.getElementById("matQty").value = "";
+        refreshMatTable();
+      });
+
+      // Save
+      document.getElementById("btnSave").addEventListener("click", () => {
+        const getRadioVal = (name) => {
+          const r = document.querySelector(`input[name='${name}']:checked`);
+          return r ? r.value : "";
+        };
+
+        const payload = {
+          company: document.getElementById("company").value,
+          purpose: document.getElementById("purpose").value,
+          channel: getRadioVal("channel"),
+          jobberName: document.getElementById("jobberName").value,
+          qtyHeader: document.getElementById("qtyHeader").value,
+          invoiceNo: document.getElementById("invoiceNo").value,
+          orderNo: document.getElementById("orderNo").value,
+          salesman: document.getElementById("salesman").value,
+          job: document.getElementById("job").value,
+          product: document.getElementById("product").value,
+          productPart: document.getElementById("productPart").value,
+          qtyProduct: document.getElementById("qtyProduct").value,
+          designer: document.getElementById("designer").value,
+          deliveryDate: document.getElementById("deliveryDate").value,
+          remark: document.getElementById("remark").value,
+          materials: materials
+        };
+
+        const msg = document.getElementById("msg");
+        msg.textContent = "Saving...";
+        document.getElementById("btnSave").disabled = true;
+
+        google.script.run
+          .withSuccessHandler((res) => {
+            msg.textContent = res && res.success ? "✅ Saved" : "❌ Failed";
+            if (res && res.success) {
+              // clear form minimally (keep dropdowns)
+              materials.splice(0);
+              refreshMatTable();
+              document.getElementById("remark").value = "";
+              document.getElementById("invoiceNo").value = "";
+              document.getElementById("orderNo").value = "";
+              document.getElementById("qtyProduct").value = 0;
+              document.getElementById("qtyHeader").value = 0;
+            }
+            document.getElementById("btnSave").disabled = false;
+          })
+          .withFailureHandler(err => {
+            msg.textContent = "❌ " + (err && err.message ? err.message : "Save failed");
+            document.getElementById("btnSave").disabled = false;
+          })
+          .saveJobIssue(payload);
+      });
+
+      // Load all dropdown data from Apps Script
+      function init() {
+        const msg = document.getElementById("msg");
+        msg.textContent = "Loading...";
+        google.script.run
+          .withSuccessHandler((d) => {
+            DROPS = d || {};
+
+            setOptions(document.getElementById("company"), DROPS.companies);
+            setOptions(document.getElementById("purpose"), DROPS.purposes);
+            setOptions(document.getElementById("product"), DROPS.products);
+
+            setDatalist(document.getElementById("dlJobbers"), DROPS.jobbers);
+            setDatalist(document.getElementById("dlSales"), DROPS.salesmen);
+            setDatalist(document.getElementById("dlJobs"), DROPS.jobs);
+            setDatalist(document.getElementById("dlDesigners"), DROPS.designers);
+            setDatalist(document.getElementById("dlOrderNos"), DROPS.orderNos);
+
+            setOptions(document.getElementById("matType"), DROPS.materialTypes);
+            setOptions(document.getElementById("matName"), DROPS.materialAttachments);
+
+            // purpose/channel logic
+            document.getElementById("purpose").addEventListener("change", toggleChannelAndExtras);
+            document.querySelectorAll("input[name='channel']").forEach(r => {
+              r.addEventListener("change", onChannelChange);
+            });
+
+            msg.textContent = "";
+          })
+          .withFailureHandler(err => {
+            msg.textContent = "❌ Failed to load dropdowns";
+            console.error(err);
+          })
+          .getJobFormDropdowns();
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>
