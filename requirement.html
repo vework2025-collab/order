@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Requirement Entry</title>
+
+<style>
+body { font-family: Arial; background:#f4f6f8; padding:20px; }
+.card { background:#fff; padding:20px; border-radius:10px; max-width:700px; margin:auto; }
+label { font-weight:600; margin-top:10px; display:block; }
+input, select { width:100%; padding:8px; margin-top:5px; }
+button { margin-top:15px; padding:10px 20px; background:#0b5bd3; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+</style>
+</head>
+
+<body>
+<div class="card">
+  <h2>Requirement Entry</h2>
+
+  <label>Item Code</label>
+  <select id="itemCode"></select>
+
+  <label>Item Name</label>
+  <input list="itemNames" id="itemName">
+  <datalist id="itemNames"></datalist>
+
+  <label>Color</label>
+  <select id="color"></select>
+
+  <label>Item Photo</label>
+  <input type="file" id="photo">
+
+  <label>Qty</label>
+  <input type="number" id="qty">
+
+  <label>Qty Type</label>
+  <select id="qtyType"></select>
+
+  <label>Unit Name</label>
+  <select id="unit"></select>
+
+  <label>Person Name</label>
+  <input type="text" id="person">
+
+  <label>Requirement Type</label>
+  <select id="reqType">
+    <option>Normal</option>
+    <option>Urgent</option>
+  </select>
+
+  <button onclick="saveData()">Save</button>
+  <p id="msg"></p>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzS_cwFcLZD186XZNybdGIhPXPlszSqGBAFtsB-VPL9MWPFDry8sLWfG6MnmidogOykEQ/exec";
+
+/* ---------- JSONP loader ---------- */
+function loadDropdowns(){
+  const cb = "cb_"+Date.now();
+  window[cb] = data => {
+    fill("itemCode", data.itemNames);
+    fill("itemNames", data.itemNames, true);
+    fill("color", data.colors);
+    fill("qtyType", data.qtyTypes);
+    fill("unit", data.units);
+  };
+  const s = document.createElement("script");
+  s.src = SCRIPT_URL + "?action=getDropdowns&callback=" + cb;
+  document.body.appendChild(s);
+}
+
+function fill(id, arr, isDatalist){
+  const el = document.getElementById(id);
+  el.innerHTML = "";
+  arr.forEach(v=>{
+    const o = document.createElement(isDatalist?"option":"option");
+    o.value = v;
+    o.textContent = v;
+    el.appendChild(o);
+  });
+}
+
+async function toBase64(f){
+  return new Promise(r=>{
+    const fr = new FileReader();
+    fr.onload=()=>r(fr.result);
+    fr.readAsDataURL(f);
+  });
+}
+
+async function saveData(){
+  const file = document.getElementById("photo").files[0];
+  const img = file ? await toBase64(file) : "";
+
+  const payload = {
+    itemCode: itemCode.value,
+    itemName: itemName.value,
+    color: color.value,
+    qty: qty.value,
+    qtyType: qtyType.value,
+    unit: unit.value,
+    person: person.value,
+    reqType: reqType.value,
+    image: img,
+    imageName: file?.name || ""
+  };
+
+  const cb = "save_"+Date.now();
+  window[cb] = res => {
+    msg.textContent = res.success ? "Saved ✅" : res.error;
+  };
+
+  const s = document.createElement("script");
+  s.src = SCRIPT_URL + "?action=saveRequirement&data=" +
+          encodeURIComponent(JSON.stringify(payload)) +
+          "&callback=" + cb;
+  document.body.appendChild(s);
+}
+
+document.addEventListener("DOMContentLoaded", loadDropdowns);
+</script>
+</body>
+</html>
