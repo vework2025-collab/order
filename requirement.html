@@ -5,51 +5,155 @@
 <title>Requirement Entry</title>
 
 <style>
-body { font-family: Arial; background:#f4f6f8; padding:20px; }
-.card { background:#fff; padding:20px; border-radius:10px; max-width:700px; margin:auto; }
-label { font-weight:600; margin-top:10px; display:block; }
-input, select { width:100%; padding:8px; margin-top:5px; }
-button { margin-top:15px; padding:10px 20px; background:#0b5bd3; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  padding: 40px;
+}
+
+.card {
+  background: #fff;
+  padding: 40px;
+  border-radius: 16px;
+  max-width: 900px;
+  margin: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+h2 {
+  text-align: center;
+  color: #0b5bd3;
+  margin-bottom: 30px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 30px;
+}
+
+label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  font-size: 14px;
+}
+
+.file-box {
+  border: 2px dashed #d0d7e2;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fafcff;
+}
+
+.full {
+  grid-column: span 2;
+}
+
+button {
+  margin-top: 30px;
+  padding: 12px 40px;
+  background: #0b5bd3;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #094db3;
+}
+
+#msg {
+  margin-top: 15px;
+  text-align: center;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .full {
+    grid-column: span 1;
+  }
+}
 </style>
+
 </head>
 
 <body>
 <div class="card">
   <h2>Requirement Entry</h2>
 
-  <label>Item Code</label>
-  <select id="itemCode"></select>
+  <div class="form-grid">
 
-  <label>Item Name</label>
-  <input list="itemNames" id="itemName">
-  <datalist id="itemNames"></datalist>
+    <div>
+      <label>Item Code</label>
+      <select id="itemCode"></select>
+    </div>
 
-  <label>Color</label>
-  <select id="color"></select>
+    <div>
+      <label>Item Name</label>
+      <input list="itemNames" id="itemName">
+      <datalist id="itemNames"></datalist>
+    </div>
 
-  <label>Item Photo</label>
-  <input type="file" id="photo">
+    <div>
+      <label>Color</label>
+      <select id="color"></select>
+    </div>
 
-  <label>Qty</label>
-  <input type="number" id="qty">
+    <div>
+      <label>Qty</label>
+      <input type="number" id="qty">
+    </div>
 
-  <label>Qty Type</label>
-  <select id="qtyType"></select>
+    <div class="full">
+      <label>Item Photo</label>
+      <div class="file-box">
+        <input type="file" id="photo">
+      </div>
+    </div>
 
-  <label>Unit Name</label>
-  <select id="unit"></select>
+    <div>
+      <label>Qty Type</label>
+      <select id="qtyType"></select>
+    </div>
 
-  <label>Person Name</label>
-  <input type="text" id="person">
+    <div>
+      <label>Unit Name</label>
+      <select id="unit"></select>
+    </div>
 
-  <label>Requirement Type</label>
-  <select id="reqType">
-    <option>Normal</option>
-    <option>Urgent</option>
-  </select>
+    <div>
+      <label>Person Name</label>
+      <input type="text" id="person">
+    </div>
 
-  <button onclick="saveData()">Save</button>
-  <p id="msg"></p>
+    <div>
+      <label>Requirement Type</label>
+      <select id="reqType">
+        <option>Normal</option>
+        <option>Urgent</option>
+      </select>
+    </div>
+
+  </div>
+
+  <div style="text-align:center;">
+    <button onclick="saveData()">Save</button>
+    <p id="msg"></p>
+  </div>
 </div>
 
 <script>
