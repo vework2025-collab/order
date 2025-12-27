@@ -172,18 +172,40 @@ function loadDropdowns(){
   const s = document.createElement("script");
   s.src = SCRIPT_URL + "?action=getDropdowns&callback=" + cb;
   document.body.appendChild(s);
+  window[cb] = data => {
+  fill("itemCode", data.itemNames);
+  fill("itemNames", data.itemNames, true);
+  fill("color", data.colors);
+  fill("qtyType", data.qtyTypes);
+  fill("unit", data.units);
+
+  // force repaint
+  document.getElementById("itemCode").selectedIndex = 0;
+};
+
 }
 
-function fill(id, arr, isDatalist){
+function fill(id, arr, isDatalist = false){
   const el = document.getElementById(id);
   el.innerHTML = "";
-  arr.forEach(v=>{
-    const o = document.createElement(isDatalist?"option":"option");
-    o.value = v;
-    o.textContent = v;
+
+  if (!arr || !arr.length) return;
+
+  arr.forEach(v => {
+    const o = document.createElement("option");
+
+    if (isDatalist) {
+      // datalist only needs value
+      o.value = v;
+    } else {
+      o.value = v;
+      o.textContent = v;
+    }
+
     el.appendChild(o);
   });
 }
+
 
 async function toBase64(f){
   return new Promise(r=>{
